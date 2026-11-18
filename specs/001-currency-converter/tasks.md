@@ -19,7 +19,7 @@ branch `001-currency-converter-tests`. Each test task keeps its `[USx]` label fo
 
 **Rules for the implementing agent**:
 - Names, signatures, messages and formulas are fixed by `contracts/core-api.md`,
-  `contracts/gui.md` and `data-model.md`. Do not rename or "improve" them.
+  `contracts/bnm-source.md`, `contracts/gui.md` and `data-model.md`. Do not rename or "improve" them.
 - Standard library only at runtime (constitution V). Core modules MUST NOT import `tkinter`.
 - Mark a task `[X]` in this file when it is done. Do not write `REPORT.md` — the student writes it.
 
@@ -46,14 +46,15 @@ Single project, package at repository root: `currency_converter/`, tests in `tes
 
 ## Phase 2: Foundational (Blocking Prerequisites)
 
-**Purpose**: types, errors, validation and number formatting used by every story
+**Purpose**: types, errors, validation, number formatting and the cache used by every story
 
 **⚠️ CRITICAL**: No user story work can begin until this phase is complete
 
 - [ ] T003 [P] Implement the exception hierarchy and messages in `currency_converter/errors.py` per contracts/core-api.md (`ConverterError`, `ValidationError`, `SourceUnavailableError`, `InvalidResponseError`, `NoRatesError(requested_date, earliest_date)`) and data-model.md "Errors"
-- [ ] T004 [P] Implement `CurrencyRate` (data-model.md CurrencyRate.code, CurrencyRate.nominal, CurrencyRate.value; `per_unit`), `MDL_RATE`, `RateTable` (data-model.md RateTable.rates_date, RateTable.requested_date, RateTable.rates — MDL never stored; `get`, `codes`), `LoadStatus`, `LoadResult` and `ConversionResult` in `currency_converter/models.py`
+- [ ] T004 [P] Implement in `currency_converter/models.py`: `CurrencyRate` (data-model.md CurrencyRate.code, CurrencyRate.name, CurrencyRate.nominal, CurrencyRate.value; `per_unit`), `MDL_RATE`, `RateTable` (data-model.md RateTable.rates_date, RateTable.requested_date, RateTable.source, RateTable.fetched_at, RateTable.rates — MDL never stored; `get`, `codes`), `LoadStatus`, `LoadResult` (data-model.md LoadResult.warning, default `None`) and `ConversionResult` (data-model.md ConversionResult.amount, ConversionResult.from_code, ConversionResult.to_code, ConversionResult.converted, ConversionResult.rate, ConversionResult.reverse_rate, ConversionResult.same_currency)
 - [ ] T005 [P] Implement `parse_amount` and `parse_rate_date` with the exact `MSG_*` constants, `MAX_AMOUNT` and `MIN_RATE_DATE` in `currency_converter/validation.py` per contracts/core-api.md (FR-009, FR-011)
-- [ ] T006 [P] Implement `format_amount`, `format_rate` and `format_date` in `currency_converter/formatting.py` per contracts/core-api.md (space thousands separator, comma decimal separator, `ROUND_HALF_UP`)
+- [ ] T006 [P] Implement `format_amount`, `format_rate` (including the `< 0,0001` rule) and `format_date` in `currency_converter/formatting.py` per contracts/core-api.md (space thousands separator, comma decimal separator, `ROUND_HALF_UP`)
+- [ ] T007 [P] Implement `CACHE_FILE_NAME`, `CACHE_HOME_ENV`, `default_cache_path` (research.md R5; an empty env value counts as unset) and `RateCache` with `path`, `last_error`, `load`, `save` in `currency_converter/cache.py` using data-model.md "Saved rates" (decimals as strings, atomic write via temp file + `os.replace`; `load` never raises and sets `last_error` for an unreadable file — FR-015, FR-016)
 
 **Checkpoint**: foundation ready — user story implementation can now begin
 
@@ -66,12 +67,12 @@ official BNM rate with date and source shown.
 
 **Independent Test**: quickstart.md scenarios 1–4.
 
-- [ ] T007 [P] [US1] Implement `DEFAULT_BASE_URL`, `SOURCE_URL_ENV`, `TIMEOUT_SECONDS`, `build_url` and `fetch_xml` in `currency_converter/bnm_source.py` per contracts/bnm-source.md "Request" and "Responses" (404/empty → `None`, other statuses and network errors → `SourceUnavailableError`, timeout 10 s, User-Agent header)
-- [ ] T008 [P] [US1] Implement `parse_rates` in `currency_converter/bnm_source.py` per contracts/bnm-source.md "Parsing rules" (data-model.md CurrencyRate.code, CurrencyRate.nominal, CurrencyRate.value, RateTable.rates_date; source = `SOURCE_NAME`)
-- [ ] T009 [P] [US1] Implement `convert` and `currency_options` in `currency_converter/converter.py` (data-model.md ConversionResult.converted, ConversionResult.rate, ConversionResult.reverse_rate, ConversionResult.same_currency; FR-005–FR-008); check against the worked examples in contracts/core-api.md
-- [ ] T010 [P] [US1] Implement `SAME_CURRENCY_NOTE`, `result_line`, `rates_line` and `status_line` for `LoadStatus.LIVE` in `currency_converter/formatting.py`
-- [ ] T011 [US1] Implement `RateService.__init__` (injectable `fetch`, `cache`, `now`) and `RateService.load` for the requested date only (offset 0; `None`/empty table → `NoRatesError`) in `currency_converter/rate_service.py`
-- [ ] T012 [US1] Implement `ConverterApp` and `main()` in `currency_converter/gui.py`: layout rows 1–8, 10 and 12 of contracts/gui.md, default USD → MDL, worker thread + `queue.Queue` polled with `root.after(100)` (behaviour 11), start-up load of today's rates (behaviour 2), Convert with immediate conversion when the active table matches (behaviour 6), Swap (8), Today (9), button rule FR-004 (behaviour 10), same-currency note (FR-008)
+- [ ] T008 [P] [US1] Implement `DEFAULT_BASE_URL`, `SOURCE_URL_ENV`, `TIMEOUT_SECONDS`, `USER_AGENT`, `build_url` (environment read at call time) and `fetch_xml` in `currency_converter/bnm_source.py` exactly per contracts/bnm-source.md "Request", "Responses" and "HTTP client details" (`urllib.request.urlopen` called through the module attribute)
+- [ ] T009 [P] [US1] Implement `parse_rates` in `currency_converter/bnm_source.py` per contracts/bnm-source.md "Parsing rules" (data-model.md CurrencyRate.code, CurrencyRate.name, CurrencyRate.nominal, CurrencyRate.value, RateTable.rates_date, RateTable.source = `SOURCE_NAME`, RateTable.fetched_at)
+- [ ] T010 [P] [US1] Implement `convert` (unknown code checked before same currency) and `currency_options` in `currency_converter/converter.py` (data-model.md ConversionResult.amount, ConversionResult.from_code, ConversionResult.to_code, ConversionResult.converted, ConversionResult.rate, ConversionResult.reverse_rate, ConversionResult.same_currency; FR-005–FR-008); check against the worked examples in contracts/core-api.md
+- [ ] T011 [P] [US1] Implement `SAME_CURRENCY_NOTE`, `result_line` (including the `< 0,01 CODE` rule), `rates_line` and `status_line` for `LoadStatus.LIVE` in `currency_converter/formatting.py`
+- [ ] T012 [US1] Implement `RateService.__init__` (injectable `fetch`, `cache` defaulting to `RateCache()`, `now`; public `cache` attribute) and `RateService.load` for the requested date only (offset 0; `None` or an empty table → `NoRatesError`) in `currency_converter/rate_service.py`
+- [ ] T013 [US1] Implement `ConverterApp` and `main()` in `currency_converter/gui.py`: layout rows 1–10 and 12 of contracts/gui.md, default USD → MDL, worker thread + `queue.Queue` polled with `root.after(100)` (behaviour 11), start-up load of today's rates (behaviour 1 without the saved-rates part, behaviour 2), Convert with immediate conversion when the active table matches (behaviour 6), Swap (8), Today (9), button rule and Enter binding (behaviour 10, FR-004), same-currency note in row 9 (FR-008)
 
 **Checkpoint**: `python -m currency_converter` converts at today's live rate
 
@@ -83,7 +84,7 @@ official BNM rate with date and source shown.
 
 **Independent Test**: quickstart.md scenarios 5–6.
 
-- [ ] T013 [US2] In `currency_converter/gui.py` show `ValidationError` messages from `parse_amount`/`parse_rate_date` in the red error label (row 6), clear result/rates/note labels on error, clear the error label on the next successful conversion, bind Enter to Convert (FR-010, contracts/gui.md behaviour 6)
+- [ ] T014 [US2] In `currency_converter/gui.py` show `ValidationError` messages from `parse_amount`/`parse_rate_date` in the red error label (row 6), clear result/rates/note labels on error, clear the error label on the next successful conversion (FR-010, contracts/gui.md behaviour 6)
 
 **Checkpoint**: US1 + US2 work together
 
@@ -95,10 +96,9 @@ official BNM rate with date and source shown.
 
 **Independent Test**: quickstart.md scenarios 8–10.
 
-- [ ] T014 [P] [US3] Implement `CACHE_FILE_NAME`, `CACHE_HOME_ENV`, `default_cache_path` (research.md R5) and `RateCache.load`/`RateCache.save` in `currency_converter/cache.py` using the JSON format of data-model.md "Saved rates" (decimals as strings, atomic write via temp file + `os.replace`, `load` never raises — FR-015, FR-016)
-- [ ] T015 [US3] In `currency_converter/rate_service.py` save every successful table to the cache (log and ignore `OSError`) and implement `RateService.load_saved` returning `LoadResult(table, LoadStatus.CACHED)` or `None`; default `cache` is `RateCache()`
+- [ ] T015 [US3] In `currency_converter/rate_service.py` save every successful table to `self.cache` (on `OSError` log it and return the `warning` text from contracts/core-api.md) and implement `RateService.load_saved` returning `LoadResult(table, LoadStatus.CACHED)` or `None`
 - [ ] T016 [P] [US3] Extend `status_line` in `currency_converter/formatting.py` with the `LoadStatus.CACHED` text from data-model.md "LoadStatus"
-- [ ] T017 [US3] In `currency_converter/gui.py` implement start-up `load_saved` (behaviour 1), the notification frame (row 11) with the messages and the `Использовать сохранённый курс от DD.MM.YYYY` / `Повторить` buttons for `SourceUnavailableError` and `InvalidResponseError` (behaviour 3), and accepting the offer (behaviour 5: active = CACHED, date field = saved requested date)
+- [ ] T017 [US3] In `currency_converter/gui.py` implement start-up `load_saved` with the `cache.last_error` notice (behaviour 1), the notification frame (row 11) with the messages and the `Использовать сохранённый курс от DD.MM.YYYY` (saved `rates_date`) / `Повторить` buttons for `SourceUnavailableError` and `InvalidResponseError` (behaviour 3), accepting the offer (behaviour 5: active = CACHED, date field = saved `requested_date`), and showing `LoadResult.warning` in the note label (behaviour 2)
 
 **Checkpoint**: quickstart scenario 8 works with `CURRENCY_CONVERTER_SOURCE_URL=http://127.0.0.1:9/`
 
@@ -123,7 +123,7 @@ official BNM rate with date and source shown.
 - [ ] T021 Override `root.report_callback_exception` and route worker exceptions through the queue so unexpected errors are logged and shown as `Непредвиденная ошибка: … Приложение продолжает работу.` in `currency_converter/gui.py` (FR-019, contracts/gui.md behaviour 12)
 - [ ] T022 [P] Configure `logging` (INFO to stderr) in `currency_converter/__main__.py`; log every load attempt, fallback day and cache error
 - [ ] T023 [P] Write `README.md`: purpose, data source, requirements, `python -m currency_converter`, test command `python -m pytest`, environment variables `CURRENCY_CONVERTER_HOME` and `CURRENCY_CONVERTER_SOURCE_URL`
-- [ ] T024 Run quickstart.md scenarios 1–10 manually and fix any deviation from spec.md
+- [ ] T024 Check that `python -m currency_converter` starts and walk through quickstart.md scenarios 1–10 as far as possible; fix any deviation from spec.md (constitution: this is the completion gate of the implementation stage)
 
 **Checkpoint**: implementation branch ready for its Pull Request
 
@@ -131,15 +131,16 @@ official BNM rate with date and source shown.
 
 ## Phase 8: Unit tests (branch `001-currency-converter-tests`)
 
-**Purpose**: FR-020 / SC-007 — tests run with `python -m pytest`, no network access.
+**Purpose**: FR-020 / SC-007 — tests run with `python -m pytest`, no network access, never touching
+the real %APPDATA% (every `RateService` and `RateCache` in tests uses a fake or a `tmp_path` cache).
 
 - [ ] T025 [P] Create `tests/__init__.py`, copy `specs/001-currency-converter/contracts/bnm-sample-2026-11-18.xml` to `tests/fixtures/bnm_2026-11-18.xml`, and add `tests/fixtures/bnm_empty.xml` (`<ValCurs Date="18.11.2026"/>`) and `tests/fixtures/bnm_malformed.xml` (truncated XML)
-- [ ] T026 [P] [US1] Write `tests/test_bnm_source.py`: parsing the real sample (40 currencies, EUR 20.1538, USD 18.3383, JPY nominal 100, `rates_date` 18.11.2026), skipped invalid `Valute` variants (bad code, MDL, nominal 0, negative/non-numeric value, missing tags), comma decimal, duplicates, missing `@Date`, empty `ValCurs` → empty rates, malformed XML and wrong root → `InvalidResponseError`; `build_url` format and env override; `fetch_xml` with monkeypatched `urllib.request.urlopen` for 200, 200-empty, 404, 500, `URLError`, timeout
-- [ ] T027 [P] [US1] Write `tests/test_converter.py`: worked examples of contracts/core-api.md, reverse direction, cross rate through MDL with nominal 100, same currency, unknown code → `ValidationError`, `currency_options` order, and the FR-007 round-trip tolerance for every pair of the real sample
+- [ ] T026 [P] [US1] Write `tests/test_bnm_source.py`: parsing the real sample (40 currencies, EUR 20.1538 named «Евро», USD 18.3383, JPY nominal 100, `rates_date` 18.11.2026), skipped invalid `Valute` variants (bad code, MDL, nominal 0, negative or non-numeric value, missing tags), comma decimal, duplicates, missing `@Date`, empty `ValCurs` → empty rates, malformed XML and wrong root → `InvalidResponseError`; `build_url` format and env override set with `monkeypatch.setenv` after import; `fetch_xml` with a fake `urllib.request.urlopen` exactly as described in contracts/bnm-source.md "HTTP client details" for 200, 200-empty, `HTTPError` 404, `HTTPError` 500, non-200 status, `URLError`, `TimeoutError`
+- [ ] T027 [P] [US1] Write `tests/test_converter.py`: worked examples of contracts/core-api.md, reverse direction, cross rate through MDL with nominal 100, same currency, unknown code → `ValidationError` (also when both codes are the same unknown code), `currency_options` order, the FR-007 round-trip tolerance for every pair of the real sample, and SC-002 as a proxy: converting every pair of the sample takes less than 0.5 s in total
 - [ ] T028 [P] [US2] Write `tests/test_validation.py`: every accepted and rejected amount from spec.md US2 and FR-009 with the exact `MSG_*` message, dates (format, impossible date, before 01.01.2000, tomorrow allowed, day after tomorrow rejected)
-- [ ] T029 [P] [US4] Write `tests/test_rate_service.py` with a fake fetcher `{date: bytes | None | Exception}`: live result; `None` for D and D−1, rates at D−2 → `EARLIER_DATE`, `rates_date` D−2, `requested_date` D; empty `ValCurs` counts as no data; 11 misses → `NoRatesError` and exactly 11 fetch calls; `SourceUnavailableError`/`InvalidResponseError` propagate without fallback; success is saved to the cache; cache `OSError` is ignored; `load_saved` returns `CACHED` or `None`
-- [ ] T030 [P] [US3] Write `tests/test_cache.py` in `tmp_path`: save/load round trip keeps exact decimals and dates, missing file → `None`, garbage / wrong `version` / missing keys → `None`, no temp files left, `default_cache_path` honours `CURRENCY_CONVERTER_HOME`
-- [ ] T031 [P] Write `tests/test_formatting.py`: thousands grouping, comma separator, half-up rounding, `result_line`, `rates_line`, `status_line` for all three statuses, `fallback_notice`
+- [ ] T029 [P] [US4] Write `tests/test_rate_service.py` with a fake fetcher `{date: bytes | None | Exception}` and a `tmp_path` or fake cache: live result; `None` for D and D−1, rates at D−2 → `EARLIER_DATE`, `rates_date` D−2, `requested_date` D; empty `ValCurs` counts as no data; 11 misses → `NoRatesError` and exactly 11 fetch calls; `SourceUnavailableError`/`InvalidResponseError` propagate without fallback; success is saved to the cache; a cache whose `save` raises `OSError` → result still returned with `warning` set; `load_saved` returns `CACHED` or `None`
+- [ ] T030 [P] [US3] Write `tests/test_cache.py` in `tmp_path`: save/load round trip keeps exact decimals, names and dates; missing file → `None` and `last_error is None`; garbage, wrong `version` or missing keys → `None` and `last_error` set; no temp files left; `default_cache_path` honours `CURRENCY_CONVERTER_HOME` and ignores an empty value
+- [ ] T031 [P] Write `tests/test_formatting.py`: thousands grouping, comma separator, half-up rounding, `< 0,01` and `< 0,0001` rules, `result_line`, `rates_line`, `status_line` for all three statuses, `fallback_notice`
 - [ ] T032 Run `python -m pytest`; fix failing production code only where the test reflects the contracts, and record every such fix in the Pull Request description
 
 ---
@@ -149,7 +150,8 @@ official BNM rate with date and source shown.
 ### Phase Dependencies
 
 - **Setup (Phase 1)** → **Foundational (Phase 2)** → user stories.
-- **US1 (Phase 3)** is the MVP and creates `gui.py`, `bnm_source.py`, `rate_service.py`.
+- **US1 (Phase 3)** is the MVP and creates `gui.py`, `bnm_source.py`, `rate_service.py`
+  (the cache module already exists from Phase 2).
 - **US2 (Phase 4)** needs the GUI from US1.
 - **US3 (Phase 5)** and **US4 (Phase 6)** both extend `rate_service.py`, `formatting.py` and
   `gui.py`; run them sequentially (US3 then US4) to avoid conflicting edits.
@@ -158,17 +160,17 @@ official BNM rate with date and source shown.
 
 ### Parallel Opportunities
 
-- Phase 2: T003, T004, T005, T006 (different files).
-- Phase 3: T007/T008 (same file, but independent functions — do sequentially if one agent),
-  T009, T010 in parallel; T011 after T007–T008; T012 last.
+- Phase 2: T003–T007 (different files).
+- Phase 3: T008/T009 (same file, independent functions — sequential for a single agent),
+  T010 and T011 in parallel; T012 after T008–T009; T013 last.
 - Phase 8: T026–T031 all in parallel (different test files).
 
 ### Parallel Example: User Story 1
 
 ```text
-Task: "Implement build_url/fetch_xml in currency_converter/bnm_source.py"     (T007)
-Task: "Implement convert/currency_options in currency_converter/converter.py" (T009)
-Task: "Implement result_line/rates_line/status_line in formatting.py"         (T010)
+Task: "Implement build_url/fetch_xml in currency_converter/bnm_source.py"     (T008)
+Task: "Implement convert/currency_options in currency_converter/converter.py" (T010)
+Task: "Implement result_line/rates_line/status_line in formatting.py"         (T011)
 ```
 
 ## Implementation Strategy

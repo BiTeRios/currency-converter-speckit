@@ -77,7 +77,8 @@ application that runs on any machine with Python installed.
 - Implementation is performed by a coding agent (Google Antigravity) from `tasks.md`.
   Human or other-agent edits to that code are allowed but MUST be listed in `REPORT.md`.
 - Commit messages describe the change itself; a single "everything done" commit is not acceptable.
-- A stage is complete only when `python -m pytest` passes.
+- The implementation stage is complete when the application starts and the quickstart scenarios
+  pass. From the tests stage on, a stage is complete only when `python -m pytest` passes.
 
 ## Governance
 
@@ -88,4 +89,4 @@ application that runs on any machine with Python installed.
 - Every Pull Request is reviewed against the Core Principles; a violation must either be fixed or
   justified in the plan's Complexity Tracking section.
 
-**Version**: 1.0.0 | **Ratified**: 2026-11-18 | **Last Amended**: 2026-11-18
+**Version**: 1.1.0 | **Ratified**: 2026-11-18 | **Last Amended**: 2026-11-18

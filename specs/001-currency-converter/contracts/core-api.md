@@ -60,6 +60,7 @@ class LoadStatus(Enum):
 class LoadResult:
     table: RateTable
     status: LoadStatus
+    warning: str | None = None                   # e.g. cache could not be saved (FR-015)
 
 @dataclass(frozen=True)
 class ConversionResult:
@@ -75,15 +76,17 @@ class ConversionResult:
 ## `currency_converter/bnm_source.py`
 
 ```python
-DEFAULT_BASE_URL = "https://www.bnm.md/en/official_exchange_rates"
+DEFAULT_BASE_URL = "https://www.bnm.md/ru/official_exchange_rates"
 SOURCE_URL_ENV = "CURRENCY_CONVERTER_SOURCE_URL"
 TIMEOUT_SECONDS = 10
+USER_AGENT = "CurrencyConverter/1.0 (educational project)"
 
 def build_url(day: date, base_url: str | None = None) -> str
-    # base_url None → env SOURCE_URL_ENV or DEFAULT_BASE_URL; returns f"{base}?get_xml=1&date=DD.MM.YYYY"
+    # base_url None → os.environ.get(SOURCE_URL_ENV) read at call time (empty → ignored)
+    # or DEFAULT_BASE_URL; returns f"{base}?get_xml=1&date=DD.MM.YYYY"
 
 def fetch_xml(day: date, timeout: float = TIMEOUT_SECONDS) -> bytes | None
-    # see bnm-source.md "Responses"; uses urllib.request.urlopen
+    # see bnm-source.md "Responses" and "HTTP client details" (exact urllib call form)
 
 def parse_rates(xml_bytes: bytes, requested_date: date, fetched_at: datetime | None = None) -> RateTable
     # see bnm-source.md "Parsing rules"; fetched_at None → datetime.now(); source = SOURCE_NAME
@@ -102,8 +105,13 @@ def default_cache_path() -> Path               # resolution order: research.md R
 class RateCache:
     def __init__(self, path: Path | None = None): ...   # None → default_cache_path()
     path: Path
-    def load(self) -> RateTable | None: ...      # never raises; missing/corrupt → None
+    last_error: str | None
+        # set by load(): None if the file is absent or valid; if it exists but is unreadable:
+        # "Сохранённый курс не удалось прочитать ({detail}); он будет заменён при следующей загрузке."
+    def load(self) -> RateTable | None: ...      # never raises; missing/corrupt → None (see last_error)
     def save(self, table: RateTable) -> None: ...  # atomic write; creates parent dirs; may raise OSError
+
+# default_cache_path: an empty CURRENCY_CONVERTER_HOME counts as unset.
 ```
 
 ## `currency_converter/rate_service.py`
@@ -126,20 +134,25 @@ class RateService:
         #   table = parse_rates(xml, day, now())  # InvalidResponseError propagates immediately
         #   if not table.rates: continue
         #   table = replace(table, requested_date=requested)
-        #   save to cache (OSError is logged and ignored)
-        #   return LoadResult(table, LIVE if offset == 0 else EARLIER_DATE)
+        #   save to cache if a cache is set; on OSError log it and set
+        #   warning = f"Курс получен, но не сохранён на диск: {error}"
+        #   return LoadResult(table, LIVE if offset == 0 else EARLIER_DATE, warning)
         # raise NoRatesError(requested, requested - timedelta(days=MAX_LOOKBACK_DAYS))
 
     def load_saved(self) -> LoadResult | None:
         # cache.load() wrapped as LoadResult(table, CACHED); None if no cache or nothing saved
+        # (the reason for None, if the file was damaged, is in self.cache.last_error)
+
+    cache: RateCache | None                      # public attribute; default RateCache()
 ```
 
 ## `currency_converter/converter.py`
 
 ```python
 def convert(amount: Decimal, from_code: str, to_code: str, table: RateTable) -> ConversionResult
-    # formula and rounding: data-model.md ConversionResult; unknown code → ValidationError("Выберите валюту из списка.")
-    # same code → converted = amount (quantized 0.01), rate = reverse_rate = Decimal("1.0000"), same_currency=True
+    # formula and rounding: data-model.md ConversionResult
+    # 1) unknown from_code or to_code → ValidationError("Выберите валюту из списка.")  (checked first)
+    # 2) same code → converted = amount (quantized 0.01), rate = reverse_rate = Decimal("1.0000"), same_currency=True
 
 def currency_options(table: RateTable) -> list[tuple[str, str]]
     # [(code, f"{code} — {name}")], order: MDL, EUR, USD (if present), then the rest sorted by code
@@ -178,9 +191,10 @@ def parse_rate_date(text: str, today: date) -> date
 SAME_CURRENCY_NOTE = "Валюты совпадают — конвертация не требуется"
 
 def format_amount(value: Decimal) -> str      # 2 decimals, "," separator, space thousands: "1 833,83"
-def format_rate(value: Decimal) -> str        # 4 decimals, same separators: "18,3383"
+def format_rate(value: Decimal) -> str        # 4 decimals, same separators: "18,3383";
+                                              # a positive value that rounds to 0.0000 → "< 0,0001"
 def format_date(day: date) -> str             # "18.11.2026"
-def result_line(r: ConversionResult) -> str   # "100,00 USD = 1 833,83 MDL"
+def result_line(r: ConversionResult) -> str   # "100,00 USD = 1 833,83 MDL"; converted 0.00 → "0,10 MDL = < 0,01 EUR"
 def rates_line(r: ConversionResult) -> str    # "1 USD = 18,3383 MDL · 1 MDL = 0,0545 USD"
 def status_line(result: LoadResult) -> str
     # "Источник: Национальный банк Молдовы, bnm.md · " + LoadStatus text from data-model.md

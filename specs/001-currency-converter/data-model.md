@@ -8,7 +8,7 @@ All types live in `currency_converter/models.py` (immutable dataclasses) and
 | Field | Type | Rules |
 |---|---|---|
 | `code` | `str` | ISO 4217, exactly 3 uppercase letters (`USD`) |
-| `name` | `str` | Name as published by the source (`US Dollar`); may be empty |
+| `name` | `str` | Name as published by the source's Russian export (`Доллар США`); may be empty |
 | `nominal` | `int` | ≥ 1; number of units `value` refers to (JPY = 100) |
 | `value` | `Decimal` | > 0; price of `nominal` units in MDL |
 
@@ -39,7 +39,8 @@ otherwise; `codes` returns `["MDL", *rates]`.
 
 ## LoadResult
 
-`table: RateTable`, `status: LoadStatus`.
+`table: RateTable`, `status: LoadStatus`, `warning: str | None = None` (non-blocking notice, e.g.
+the table could not be saved — FR-015).
 
 ## ConversionResult
 
@@ -62,14 +63,15 @@ otherwise; `codes` returns `["MDL", *rates]`.
   "rates_date": "2026-11-18",
   "fetched_at": "2026-11-18T14:03:12",
   "rates": [
-    {"code": "EUR", "name": "Euro", "nominal": 1, "value": "20.1538"},
-    {"code": "JPY", "name": "Japanese Yen", "nominal": 100, "value": "11.5165"}
+    {"code": "EUR", "name": "Евро", "nominal": 1, "value": "20.1538"},
+    {"code": "JPY", "name": "Японская Йена", "nominal": 100, "value": "11.5165"}
   ]
 }
 ```
 
 Rules: dates ISO 8601; `value` as string (exact decimal); any missing key, wrong type, unknown
-`version` or invalid rate makes the whole file count as "no saved rates" (FR-016).
+`version` or invalid rate makes the whole file count as "no saved rates" and sets
+`RateCache.last_error` so the GUI can show a non-blocking notice (FR-016).
 
 ## Errors (`currency_converter/errors.py`)
 
@@ -88,6 +90,7 @@ All inherit from `ConverterError(Exception)`; `str(error)` is the Russian user-f
 start ─► [saved table loaded from disk?] ─► loading(today)
 loading ─ success ─► active = LIVE | EARLIER_DATE
 loading ─ Source/Invalid error ─► notification (offer if saved table exists)
-notification ─ "Использовать сохранённый курс" ─► active = CACHED, date field = saved.requested_date
+notification ─ "Использовать сохранённый курс от {saved.rates_date}" ─► active = CACHED,
+                date field = saved.requested_date
 active ─ date changed + Convert/Refresh ─► loading(new date)
 ```

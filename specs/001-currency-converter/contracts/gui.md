@@ -28,13 +28,16 @@ Combobox values come from `currency_options(table)` (display text), the code is 
 ## Behaviour
 
 1. **Start-up**: `service.load_saved()`; if present, fill the currency lists from it (it is *not*
-   active yet). Then start loading today's rates in a worker thread.
+   active yet); if it returned `None` and `service.cache.last_error` is set, show that text in the
+   note label (non-blocking). Then start loading today's rates in a worker thread.
 2. **Load success**: active = result; lists rebuilt (selections kept if the code still exists,
    otherwise cleared and the note says `Выберите валюту заново`); status line updated; notification
-   hidden; `fallback_notice` shown in the note label when status is `EARLIER_DATE`.
+   hidden; `fallback_notice` shown in the note label when status is `EARLIER_DATE`;
+   `result.warning`, if any, is appended to the note label.
 3. **Load failure** (`SourceUnavailableError` / `InvalidResponseError`): notification shows
    `str(error)` plus, if saved rates exist and are not already active,
-   `Можно продолжить с сохранённым курсом от {rates_date}.` and the offer button. Without saved
+   `Можно продолжить с сохранённым курсом от {saved.table.rates_date}.` and the offer button
+   (its text uses the same `rates_date`). Without saved
    rates: `Курс недоступен: нет связи с источником и нет сохранённых данных. Проверьте подключение
    и нажмите «Обновить курс».` Pending conversion is cancelled.
 4. **`NoRatesError`**: error label shows `str(error)`; no conversion.
@@ -48,9 +51,11 @@ Combobox values come from `currency_options(table)` (display text), the code is 
 8. **Swap**: exchange the two selections; clear result, rates and note labels.
 9. **Today**: set the date field to `format_date(today())`.
 10. **Button state (FR-004)**, re-evaluated on every change of the amount text, selections,
-    active table and loading flag: `Конвертировать` is enabled iff amount text is non-blank, both
-    currencies are selected, (an active table exists **or** saved/live lists are filled so a load
-    can be started) and nothing is loading. `Обновить курс` is disabled while loading.
+    currency lists and loading flag: `Конвертировать` is enabled iff the amount text is non-blank,
+    both currencies are selected and nothing is loading (the lists are filled from the live or the
+    saved table, so with no rates at all nothing is selectable). The Enter binding calls the same
+    handler, which returns immediately when the button is disabled. `Обновить курс` is disabled
+    while loading.
 11. **Threading**: one worker at a time. The worker calls `service.load(day)` and puts either the
     `LoadResult` or the exception into a `queue.Queue`; the GUI polls it every 100 ms with
     `root.after`. Worker threads never touch Tk objects.

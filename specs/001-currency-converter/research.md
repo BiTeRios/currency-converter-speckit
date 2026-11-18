@@ -4,8 +4,9 @@ All findings below were verified on 2026-11-18 against the live source where mar
 
 ## R1. Data source: BNM XML vs. a free exchange-rate API
 
-- **Decision**: official BNM XML endpoint
-  `https://www.bnm.md/en/official_exchange_rates?get_xml=1&date=DD.MM.YYYY`.
+- **Decision**: official BNM XML endpoint, Russian-language export
+  `https://www.bnm.md/ru/official_exchange_rates?get_xml=1&date=DD.MM.YYYY` (same data as `/en/`,
+  Russian currency names to match the Russian interface; switched after analysis pass 1, F3).
 - **Rationale**: it is the legally official rate in Moldova (the users' country); no API key, no
   registration, no rate limit documented; per-date requests make the "weekends and holidays"
   requirement natural; XML parsing is a meaningful unit-test target.
@@ -52,7 +53,7 @@ All findings below were verified on 2026-11-18 against the live source where mar
 ## R5. Cache location and format
 
 - **Decision**: JSON, path resolved in order: environment variable `CURRENCY_CONVERTER_HOME`
-  (directory) → Windows `%APPDATA%\CurrencyConverter` → `$XDG_DATA_HOME/currency-converter` →
+  (directory; an empty value counts as unset) → Windows `%APPDATA%\CurrencyConverter` → `$XDG_DATA_HOME/currency-converter` →
   `~/.local/share/currency-converter`; file name `rates_cache.json`. Decimals stored as strings.
   Written atomically (temporary file in the same directory + `os.replace`).
 - **Rationale**: survives restarts, readable by humans, standard library only; the env variable
@@ -71,7 +72,7 @@ All findings below were verified on 2026-11-18 against the live source where mar
 ## R7. Offline demonstration hook
 
 - **Decision**: environment variable `CURRENCY_CONVERTER_SOURCE_URL` overrides the base URL
-  (default `https://www.bnm.md/en/official_exchange_rates`). Setting it to
+  (default `https://www.bnm.md/ru/official_exchange_rates`). Setting it to
   `http://127.0.0.1:9/` makes every request fail like a dead network, which allows a repeatable
   "no network" demo without touching system settings. Airplane mode works as well.
 
