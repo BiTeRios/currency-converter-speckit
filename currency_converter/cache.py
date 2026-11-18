@@ -1,6 +1,7 @@
 """Local cache for exchange rates."""
 
 import json
+import logging
 import os
 import tempfile
 from datetime import date, datetime
@@ -8,6 +9,8 @@ from decimal import Decimal
 from pathlib import Path
 
 from currency_converter.models import CurrencyRate, RateTable
+
+logger = logging.getLogger(__name__)
 
 CACHE_FILE_NAME = "rates_cache.json"
 CACHE_HOME_ENV = "CURRENCY_CONVERTER_HOME"
@@ -124,6 +127,7 @@ class RateCache:
                 rates=rates,
             )
         except Exception as e:
+            logger.error("Ошибка чтения кэша: %s", e)
             self.last_error = (
                 f"Сохранённый курс не удалось прочитать ({e}); "
                 "он будет заменён при следующей загрузке."
@@ -163,7 +167,8 @@ class RateCache:
                 temp_path = Path(f.name)
                 json.dump(data, f, ensure_ascii=False, indent=2)
             os.replace(temp_path, self.path)
-        except Exception:
+        except Exception as e:
+            logger.error("Ошибка записи кэша: %s", e)
             if temp_path and temp_path.exists():
                 try:
                     temp_path.unlink()

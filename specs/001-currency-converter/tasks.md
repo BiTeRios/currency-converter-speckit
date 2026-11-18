@@ -96,9 +96,9 @@ official BNM rate with date and source shown.
 
 **Independent Test**: quickstart.md scenarios 8–10.
 
-- [ ] T015 [US3] In `currency_converter/rate_service.py` save every successful table to `self.cache` (on `OSError` log it and return the `warning` text from contracts/core-api.md) and implement `RateService.load_saved` returning `LoadResult(table, LoadStatus.CACHED)` or `None`
-- [ ] T016 [P] [US3] Extend `status_line` in `currency_converter/formatting.py` with the `LoadStatus.CACHED` text from data-model.md "LoadStatus"
-- [ ] T017 [US3] In `currency_converter/gui.py` implement start-up `load_saved` with the `cache.last_error` notice (behaviour 1), the notification frame (row 11) with the messages and the `Использовать сохранённый курс от DD.MM.YYYY` (saved `rates_date`) / `Повторить` buttons for `SourceUnavailableError` and `InvalidResponseError` (behaviour 3), accepting the offer (behaviour 5: active = CACHED, date field = saved `requested_date`), and showing `LoadResult.warning` in the note label (behaviour 2)
+- [X] T015 [US3] In `currency_converter/rate_service.py` save every successful table to `self.cache` (on `OSError` log it and return the `warning` text from contracts/core-api.md) and implement `RateService.load_saved` returning `LoadResult(table, LoadStatus.CACHED)` or `None`
+- [X] T016 [P] [US3] Extend `status_line` in `currency_converter/formatting.py` with the `LoadStatus.CACHED` text from data-model.md "LoadStatus"
+- [X] T017 [US3] In `currency_converter/gui.py` implement start-up `load_saved` with the `cache.last_error` notice (behaviour 1), the notification frame (row 11) with the messages and the `Использовать сохранённый курс от DD.MM.YYYY` (saved `rates_date`) / `Повторить` buttons for `SourceUnavailableError` and `InvalidResponseError` (behaviour 3), accepting the offer (behaviour 5: active = CACHED, date field = saved `requested_date`), and showing `LoadResult.warning` in the note label (behaviour 2)
 
 **Checkpoint**: quickstart scenario 8 works with `CURRENCY_CONVERTER_SOURCE_URL=http://127.0.0.1:9/`
 
@@ -110,9 +110,9 @@ official BNM rate with date and source shown.
 
 **Independent Test**: quickstart.md scenario 7; fallback is verified by unit tests (T029).
 
-- [ ] T018 [US4] Extend `RateService.load` in `currency_converter/rate_service.py` with the look-back loop over `MAX_LOOKBACK_DAYS = 10` exactly as in contracts/core-api.md (`EARLIER_DATE` status, `requested_date` replaced with the user's date, `NoRatesError(requested, requested − 10 days)` when nothing is found)
-- [ ] T019 [P] [US4] Implement `fallback_notice` and the `LoadStatus.EARLIER_DATE` text of `status_line` in `currency_converter/formatting.py`
-- [ ] T020 [US4] In `currency_converter/gui.py` load rates for the date in the date field when it differs from the active table (behaviour 6), implement `Обновить курс` (behaviour 7), show `fallback_notice` in the note label (behaviour 2) and `NoRatesError` in the error label (behaviour 4)
+- [X] T018 [US4] Extend `RateService.load` in `currency_converter/rate_service.py` with the look-back loop over `MAX_LOOKBACK_DAYS = 10` exactly as in contracts/core-api.md (`EARLIER_DATE` status, `requested_date` replaced with the user's date, `NoRatesError(requested, requested − 10 days)` when nothing is found)
+- [X] T019 [P] [US4] Implement `fallback_notice` and the `LoadStatus.EARLIER_DATE` text of `status_line` in `currency_converter/formatting.py`
+- [X] T020 [US4] In `currency_converter/gui.py` load rates for the date in the date field when it differs from the active table (behaviour 6), implement `Обновить курс` (behaviour 7), show `fallback_notice` in the note label (behaviour 2) and `NoRatesError` in the error label (behaviour 4)
 
 **Checkpoint**: all four user stories work
 
@@ -120,9 +120,9 @@ official BNM rate with date and source shown.
 
 ## Phase 7: Polish & Cross-Cutting Concerns
 
-- [ ] T021 Override `root.report_callback_exception` and route worker exceptions through the queue so unexpected errors are logged and shown as `Непредвиденная ошибка: … Приложение продолжает работу.` in `currency_converter/gui.py` (FR-019, contracts/gui.md behaviour 12)
-- [ ] T022 [P] Configure `logging` (INFO to stderr) in `currency_converter/__main__.py`; log every load attempt, fallback day and cache error
-- [ ] T023 [P] Write `README.md`: purpose, data source, requirements, `python -m currency_converter`, test command `python -m pytest`, environment variables `CURRENCY_CONVERTER_HOME` and `CURRENCY_CONVERTER_SOURCE_URL`
+- [X] T021 Override `root.report_callback_exception` and route worker exceptions through the queue so unexpected errors are logged and shown as `Непредвиденная ошибка: … Приложение продолжает работу.` in `currency_converter/gui.py` (FR-019, contracts/gui.md behaviour 12)
+- [X] T022 [P] Configure `logging` (INFO to stderr) in `currency_converter/__main__.py`; log every load attempt, fallback day and cache error
+- [X] T023 [P] Write `README.md`: purpose, data source, requirements, `python -m currency_converter`, test command `python -m pytest`, environment variables `CURRENCY_CONVERTER_HOME` and `CURRENCY_CONVERTER_SOURCE_URL`
 - [ ] T024 Check that `python -m currency_converter` starts and walk through quickstart.md scenarios 1–10 as far as possible; fix any deviation from spec.md (constitution: this is the completion gate of the implementation stage)
 
 **Checkpoint**: implementation branch ready for its Pull Request
