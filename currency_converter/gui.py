@@ -47,7 +47,7 @@ class ConverterApp:
         self.today = today
 
         self.active: LoadResult | None = None
-        self._saved_result: LoadResult | None = None
+        self._saved_table: RateTable | None = None
         self.is_loading: bool = False
         self._pending_conversion: tuple[Decimal, date] | None = None
         self.queue: queue.Queue[tuple[str, object]] = queue.Queue()
@@ -178,7 +178,7 @@ class ConverterApp:
         # Behaviour 1: load saved rates if available
         saved = self.service.load_saved()
         if saved is not None:
-            self._saved_result = saved
+            self._saved_table = saved.table
             self._populate_currencies(saved.table)
         elif self.service.cache.last_error:
             self.note_label.config(text=self.service.cache.last_error)
@@ -306,19 +306,26 @@ class ConverterApp:
 
     def _on_load_success(self, result: LoadResult) -> None:
         self.active = result
-        self._saved_result = result
+        self._saved_table = result.table
         self._populate_currencies(result.table)
         self.status_label.config(text=status_line(result))
         self.notify_frame.grid_remove()
 
+        current_note = self.note_label.cget("text")
+        notes: list[str] = []
+        if current_note:
+            notes.append(current_note)
+
         if result.status == LoadStatus.EARLIER_DATE:
             notice = fallback_notice(result)
-            if result.warning:
-                notice = f"{notice}\n{result.warning}" if notice else result.warning
-            if notice:
-                self.note_label.config(text=notice)
-        elif result.warning:
-            self.note_label.config(text=result.warning)
+            if notice and notice not in notes:
+                notes.append(notice)
+
+        if result.warning and result.warning not in notes:
+            notes.append(result.warning)
+
+        if notes:
+            self.note_label.config(text="\n".join(notes))
 
         if self._pending_conversion is not None:
             amt, req_d = self._pending_conversion
@@ -329,13 +336,15 @@ class ConverterApp:
     def _on_load_error(self, error: Exception) -> None:
         self._pending_conversion = None
         if isinstance(error, NoRatesError):
+            self.notify_frame.grid_remove()
             self.error_label.config(text=str(error))
         elif isinstance(error, (SourceUnavailableError, InvalidResponseError)):
             self.notify_frame.grid()
-            if self._saved_result is not None and (
-                self.active is None or self.active.status != LoadStatus.CACHED
-            ):
-                saved_date_str = format_date(self._saved_result.table.rates_date)
+            is_cached_active = (
+                self.active is not None and self.active.status == LoadStatus.CACHED
+            )
+            if self._saved_table is not None and not is_cached_active:
+                saved_date_str = format_date(self._saved_table.rates_date)
                 self.notify_msg.config(
                     text=f"{error}\nМожно продолжить с сохранённым курсом от {saved_date_str}."
                 )
@@ -355,17 +364,19 @@ class ConverterApp:
                 self.retry_btn.pack(side="left", padx=4, pady=2)
         else:
             logger.exception("Unexpected error during rate load")
+            self.notify_frame.grid_remove()
             self.error_label.config(
                 text=f"Непредвиденная ошибка: {error}. Приложение продолжает работу."
             )
 
     def on_use_saved(self) -> None:
-        if self._saved_result is not None:
-            self.active = LoadResult(table=self._saved_result.table, status=LoadStatus.CACHED)
-            self.date_var.set(format_date(self._saved_result.table.requested_date))
+        if self._saved_table is not None:
+            self.active = LoadResult(table=self._saved_table, status=LoadStatus.CACHED)
+            self.date_var.set(format_date(self._saved_table.requested_date))
             self._populate_currencies(self.active.table)
             self.status_label.config(text=status_line(self.active))
             self.notify_frame.grid_remove()
+            self.error_label.config(text="")
             self._update_convert_button_state()
 
     def on_retry(self) -> None:
@@ -375,6 +386,7 @@ class ConverterApp:
         except ValidationError as e:
             self.error_label.config(text=str(e))
             return
+        self.error_label.config(text="")
         self._start_load(req_date)
 
     def on_swap(self) -> None:
@@ -449,6 +461,8 @@ class ConverterApp:
         self.rates_label.config(text=rates_line(res))
         if res.same_currency:
             self.note_label.config(text=SAME_CURRENCY_NOTE)
+        elif self.active is not None and self.active.status == LoadStatus.EARLIER_DATE:
+            self.note_label.config(text=fallback_notice(self.active))
         else:
             self.note_label.config(text="")
 
