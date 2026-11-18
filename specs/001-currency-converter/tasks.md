@@ -39,8 +39,8 @@ Single project, package at repository root: `currency_converter/`, tests in `tes
 
 **Purpose**: project skeleton
 
-- [ ] T001 Create package `currency_converter/` with `currency_converter/__init__.py` defining `APP_TITLE` and `SOURCE_NAME` exactly as in contracts/core-api.md, and `currency_converter/__main__.py` that calls `currency_converter.gui.main()`
-- [ ] T002 [P] Create `pyproject.toml` with only `[tool.pytest.ini_options]` (`testpaths = ["tests"]`, `pythonpath = ["."]`) and `requirements-dev.txt` containing `pytest>=8`
+- [X] T001 Create package `currency_converter/` with `currency_converter/__init__.py` defining `APP_TITLE` and `SOURCE_NAME` exactly as in contracts/core-api.md, and `currency_converter/__main__.py` that calls `currency_converter.gui.main()`
+- [X] T002 [P] Create `pyproject.toml` with only `[tool.pytest.ini_options]` (`testpaths = ["tests"]`, `pythonpath = ["."]`) and `requirements-dev.txt` containing `pytest>=8`
 
 ---
 
@@ -50,11 +50,11 @@ Single project, package at repository root: `currency_converter/`, tests in `tes
 
 **⚠️ CRITICAL**: No user story work can begin until this phase is complete
 
-- [ ] T003 [P] Implement the exception hierarchy and messages in `currency_converter/errors.py` per contracts/core-api.md (`ConverterError`, `ValidationError`, `SourceUnavailableError`, `InvalidResponseError`, `NoRatesError(requested_date, earliest_date)`) and data-model.md "Errors"
-- [ ] T004 [P] Implement in `currency_converter/models.py`: `CurrencyRate` (data-model.md CurrencyRate.code, CurrencyRate.name, CurrencyRate.nominal, CurrencyRate.value; `per_unit`), `MDL_RATE`, `RateTable` (data-model.md RateTable.rates_date, RateTable.requested_date, RateTable.source, RateTable.fetched_at, RateTable.rates — MDL never stored; `get`, `codes`), `LoadStatus`, `LoadResult` (data-model.md LoadResult.warning, default `None`) and `ConversionResult` (data-model.md ConversionResult.amount, ConversionResult.from_code, ConversionResult.to_code, ConversionResult.converted, ConversionResult.rate, ConversionResult.reverse_rate, ConversionResult.same_currency)
-- [ ] T005 [P] Implement `parse_amount` and `parse_rate_date` with the exact `MSG_*` constants, `MAX_AMOUNT` and `MIN_RATE_DATE` in `currency_converter/validation.py` per contracts/core-api.md (FR-009, FR-011)
-- [ ] T006 [P] Implement `format_amount`, `format_rate` (including the `< 0,0001` rule) and `format_date` in `currency_converter/formatting.py` per contracts/core-api.md (space thousands separator, comma decimal separator, `ROUND_HALF_UP`)
-- [ ] T007 [P] Implement `CACHE_FILE_NAME`, `CACHE_HOME_ENV`, `default_cache_path` (research.md R5; an empty env value counts as unset) and `RateCache` with `path`, `last_error`, `load`, `save` in `currency_converter/cache.py` using data-model.md "Saved rates" (decimals as strings, atomic write via temp file + `os.replace`; `load` never raises and sets `last_error` for an unreadable file — FR-015, FR-016)
+- [X] T003 [P] Implement the exception hierarchy and messages in `currency_converter/errors.py` per contracts/core-api.md (`ConverterError`, `ValidationError`, `SourceUnavailableError`, `InvalidResponseError`, `NoRatesError(requested_date, earliest_date)`) and data-model.md "Errors"
+- [X] T004 [P] Implement in `currency_converter/models.py`: `CurrencyRate` (data-model.md CurrencyRate.code, CurrencyRate.name, CurrencyRate.nominal, CurrencyRate.value; `per_unit`), `MDL_RATE`, `RateTable` (data-model.md RateTable.rates_date, RateTable.requested_date, RateTable.source, RateTable.fetched_at, RateTable.rates — MDL never stored; `get`, `codes`), `LoadStatus`, `LoadResult` (data-model.md LoadResult.warning, default `None`) and `ConversionResult` (data-model.md ConversionResult.amount, ConversionResult.from_code, ConversionResult.to_code, ConversionResult.converted, ConversionResult.rate, ConversionResult.reverse_rate, ConversionResult.same_currency)
+- [X] T005 [P] Implement `parse_amount` and `parse_rate_date` with the exact `MSG_*` constants, `MAX_AMOUNT` and `MIN_RATE_DATE` in `currency_converter/validation.py` per contracts/core-api.md (FR-009, FR-011)
+- [X] T006 [P] Implement `format_amount`, `format_rate` (including the `< 0,0001` rule) and `format_date` in `currency_converter/formatting.py` per contracts/core-api.md (space thousands separator, comma decimal separator, `ROUND_HALF_UP`)
+- [X] T007 [P] Implement `CACHE_FILE_NAME`, `CACHE_HOME_ENV`, `default_cache_path` (research.md R5; an empty env value counts as unset) and `RateCache` with `path`, `last_error`, `load`, `save` in `currency_converter/cache.py` using data-model.md "Saved rates" (decimals as strings, atomic write via temp file + `os.replace`; `load` never raises and sets `last_error` for an unreadable file — FR-015, FR-016)
 
 **Checkpoint**: foundation ready — user story implementation can now begin
 
