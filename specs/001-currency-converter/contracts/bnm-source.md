@@ -4,13 +4,16 @@
 
 ```text
 GET {BASE_URL}?get_xml=1&date=DD.MM.YYYY
-BASE_URL = os.environ.get("CURRENCY_CONVERTER_SOURCE_URL",
-                          "https://www.bnm.md/en/official_exchange_rates")
+BASE_URL = value of env CURRENCY_CONVERTER_SOURCE_URL if set and non-empty,
+           otherwise "https://www.bnm.md/ru/official_exchange_rates"
+           (read on every call, not once at import)
 Header: User-Agent: CurrencyConverter/1.0 (educational project)
 Timeout: 10 seconds
 ```
 
-`DD.MM.YYYY` is zero-padded (`05.01.2026`).
+`DD.MM.YYYY` is zero-padded (`05.01.2026`). The Russian-language export (`/ru/`) returns the same
+codes, nominals, values and status codes as `/en/`, with Russian currency names (verified
+2026-11-18).
 
 ## Responses (verified 2026-11-18, see research.md R2)
 
@@ -26,19 +29,19 @@ Timeout: 10 seconds
 
 ```xml
 <?xml version="1.0" encoding="UTF-8"?>
-<ValCurs Date="18.11.2026" name="Official exchange rate">
+<ValCurs Date="18.11.2026" name="Обменные ставки">
   <Valute ID="47">
     <NumCode>978</NumCode>
     <CharCode>EUR</CharCode>
     <Nominal>1</Nominal>
-    <Name>Euro</Name>
+    <Name>Евро</Name>
     <Value>20.1538</Value>
   </Valute>
   <Valute ID="44">
     <NumCode>840</NumCode>
     <CharCode>USD</CharCode>
     <Nominal>1</Nominal>
-    <Name>US Dollar</Name>
+    <Name>Доллар США</Name>
     <Value>18.3383</Value>
   </Valute>
   <!-- … 40 currencies in total; JPY has <Nominal>100</Nominal> -->
@@ -47,6 +50,23 @@ Timeout: 10 seconds
 
 Full real response: [bnm-sample-2026-11-18.xml](./bnm-sample-2026-11-18.xml)
 (40 currencies; EUR 20.1538, USD 18.3383, JPY 11.5165 per 100, XDR 24.6666).
+
+## HTTP client details (`fetch_xml`)
+
+```python
+import urllib.error, urllib.request          # call through the module attribute
+request = urllib.request.Request(build_url(day), headers={"User-Agent": USER_AGENT})
+with urllib.request.urlopen(request, timeout=timeout) as response:
+    body = response.read()                   # status 200 → body (None if empty/whitespace)
+```
+
+- `urllib.error.HTTPError` with `code == 404` → `None`; any other `HTTPError` →
+  `SourceUnavailableError`.
+- A response whose `status` is not 200 (without an exception) → `SourceUnavailableError`.
+- `urllib.error.URLError`, `TimeoutError`, `socket.timeout`, `ConnectionError`, any other `OSError`
+  → `SourceUnavailableError`.
+- Tests replace `urllib.request.urlopen` with `monkeypatch.setattr(urllib.request, "urlopen", fake)`;
+  the fake returns an object usable as a context manager with `.status` and `.read()`, or raises.
 
 ## Parsing rules
 

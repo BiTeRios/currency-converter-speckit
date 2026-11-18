@@ -34,7 +34,7 @@ this flow.
 **Independent Test**: start the application with network access, enter `100`, choose USD → MDL,
 press "Convert": a result, the USD/MDL rate, today's rate date and "National Bank of Moldova"
 are shown. Swap the currencies and convert the result back: the original amount is returned
-(±0.01).
+within the FR-007 tolerance (for 100 USD that is ±0.0103).
 
 **Acceptance Scenarios**:
 
@@ -42,7 +42,7 @@ are shown. Swap the currencies and convert the result back: the original amount 
    MDL as target and presses "Convert", **Then** the result equals 100 × the official USD rate,
    rounded to 2 decimal places, and the rate date and source are displayed next to it.
 2. **Given** a conversion USD → MDL was shown, **When** the user presses "Swap" and converts the
-   shown MDL amount, **Then** the result is the original USD amount within ±0.01.
+   shown MDL amount, **Then** the result is the original USD amount within the FR-007 tolerance.
 3. **Given** rates are loaded, **When** the user converts between two foreign currencies
    (e.g. EUR → JPY), **Then** the result is computed through MDL and respects the source's
    nominal (JPY is quoted per 100 units).
@@ -67,7 +67,7 @@ and check that an error message appears, no result is shown and the application 
 **Acceptance Scenarios**:
 
 1. **Given** the amount is `abc`, `12a`, `1e5`, `NaN` or `--5`, **When** the user presses
-   "Convert", **Then** the message "Введите число, например 150 или 99,95" is shown and no result
+   "Convert", **Then** the message "Введите число, например 150 или 99,95." is shown and no result
    is displayed.
 2. **Given** the amount is `0` or `-10`, **When** the user presses "Convert", **Then** a message
    says the amount must be greater than zero and no result is displayed.
@@ -108,7 +108,8 @@ offline rates of date D.
 4. **Given** rates were loaded successfully, **When** the application is closed and reopened,
    **Then** the saved rates (with their date) are still available.
 5. **Given** the saved-rates file is damaged, **When** the application starts, **Then** it starts
-   normally as if no rates were saved.
+   normally as if no rates were saved and shows a non-blocking notice that the saved rates could
+   not be read and will be replaced by the next successful download.
 
 ---
 
@@ -155,7 +156,9 @@ published rates. In the live application, choosing a past date shows that date's
 - A currency selected before a reload disappears from the new rate table: the selection is cleared
   and the user is asked to choose again.
 - The user presses "Convert" repeatedly while rates are loading: only one load runs at a time.
-- Very large and very small amounts: up to 1 000 000 000 000 and at least 0.01.
+- Very large and very small amounts: up to 1 000 000 000 000 and at least 0.01. A converted
+  amount that rounds to 0.00 is shown as `< 0,01 CODE`; a rate that rounds to 0.0000 is shown as
+  `< 0,0001`.
 
 ## Requirements *(mandatory)*
 
@@ -169,9 +172,10 @@ published rates. In the live application, choosing a past date shows that date's
 - **FR-003**: Currency selectors MUST list Moldovan leu (MDL) plus every currency present in the
   currently loaded rate table, each shown as `CODE — name`, sorted with MDL, EUR, USD first and the
   rest alphabetically by code. Default selection: USD → MDL.
-- **FR-004**: The "Convert" button MUST be disabled while the amount field is empty (after trimming
-  spaces), while either currency is not selected, while no rate table is available, or while rates
-  are loading; otherwise it MUST be enabled.
+- **FR-004**: The "Convert" button MUST be enabled if and only if the amount field is not blank,
+  both currencies are selected and no rates are loading. Currency lists are filled from the live or
+  the saved rates, so without any rates nothing can be selected and the button stays disabled.
+  Pressing Enter MUST do nothing while the button is disabled.
 - **FR-005**: Conversion MUST compute `amount × (value_from / nominal_from) ÷ (value_to / nominal_to)`
   where `value` is the official MDL price of `nominal` units of the currency and MDL itself has
   value 1 and nominal 1. All arithmetic MUST be exact decimal arithmetic.
@@ -180,7 +184,7 @@ published rates. In the live application, choosing a past date shows that date's
 - **FR-007**: The "Swap" button MUST exchange the source and target currencies. Converting the
   displayed result back MUST return the original amount within the rounding tolerance of the
   displayed result: `|back − amount| ≤ 0.01 + 0.005 × price(target) / price(source)`, where price
-  is the MDL value of one unit. For MDL, EUR and USD pairs this is within ±0.01.
+  is the MDL value of one unit (example: 100 USD → MDL → USD is within ±0.0103).
 - **FR-008**: Selecting the same currency on both sides MUST NOT be an error: the result equals the
   amount, the rate is 1 and the note "Валюты совпадают — конвертация не требуется" is shown.
 - **FR-009**: The amount MUST be validated before conversion. Accepted: digits with at most one
@@ -205,12 +209,15 @@ published rates. In the live application, choosing a past date shows that date's
   table the active one.
 - **FR-015**: Every successfully loaded rate table MUST be saved locally (rates, rate date,
   requested date, source name, time of download) replacing the previous one, and MUST be loaded
-  from disk at start-up before any network request, so it survives restarts.
-- **FR-016**: An unreadable or damaged saved-rates file MUST be ignored without crashing; the next
+  from disk at start-up before any network request, so it survives restarts. If saving fails, the
+  loaded rates are still used and a non-blocking notice says they could not be saved.
+- **FR-016**: An unreadable or damaged saved-rates file MUST NOT crash the application: it is
+  treated as "no saved rates", a non-blocking notice says it could not be read, and the next
   successful load overwrites it.
 - **FR-017**: The rate information area MUST always show the source name
   ("Национальный банк Молдовы, bnm.md"), the date of the active rates and their status:
-  live, earlier date used (FR-013) or saved offline (FR-014).
+  live, earlier date used (FR-013) or saved offline (FR-014). Currency names are shown in Russian
+  as published by the source's Russian-language export.
 - **FR-018**: Loading rates MUST NOT freeze the window; while loading, a "Загрузка курса…"
   indicator is shown and "Convert"/"Refresh rates" are disabled. Each network request MUST time
   out after at most 10 seconds.
@@ -242,8 +249,7 @@ published rates. In the live application, choosing a past date shows that date's
 - **SC-002**: When rates are already loaded, the result appears in under 0.5 seconds after
   pressing "Convert".
 - **SC-003**: For every currency pair in a real rate table, converting an amount and then
-  converting the result back stays within the tolerance of FR-007; for pairs of MDL, EUR and USD
-  the difference is at most ±0.01.
+  converting the result back stays within the tolerance of FR-007.
 - **SC-004**: 100% of the invalid inputs listed in FR-009 and FR-011 produce an error message and
   no result.
 - **SC-005**: With the network disabled, the application starts, shows a message and converts
