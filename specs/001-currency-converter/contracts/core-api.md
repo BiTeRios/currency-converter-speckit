@@ -134,16 +134,16 @@ class RateService:
         #   table = parse_rates(xml, day, now())  # InvalidResponseError propagates immediately
         #   if not table.rates: continue
         #   table = replace(table, requested_date=requested)
-        #   save to cache if a cache is set; on OSError log it and set
+        #   save to self.cache; on OSError log it and set
         #   warning = f"Курс получен, но не сохранён на диск: {error}"
         #   return LoadResult(table, LIVE if offset == 0 else EARLIER_DATE, warning)
         # raise NoRatesError(requested, requested - timedelta(days=MAX_LOOKBACK_DAYS))
 
     def load_saved(self) -> LoadResult | None:
-        # cache.load() wrapped as LoadResult(table, CACHED); None if no cache or nothing saved
+        # self.cache.load() wrapped as LoadResult(table, CACHED); None if nothing is saved
         # (the reason for None, if the file was damaged, is in self.cache.last_error)
 
-    cache: RateCache | None                      # public attribute; default RateCache()
+    cache: RateCache                             # public attribute, never None (cache=None → RateCache())
 ```
 
 ## `currency_converter/converter.py`

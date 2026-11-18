@@ -33,7 +33,11 @@ Combobox values come from `currency_options(table)` (display text), the code is 
 2. **Load success**: active = result; lists rebuilt (selections kept if the code still exists,
    otherwise cleared and the note says `Выберите валюту заново`); status line updated; notification
    hidden; `fallback_notice` shown in the note label when status is `EARLIER_DATE`;
-   `result.warning`, if any, is appended to the note label.
+   `result.warning`, if any, is appended to the note label. A successful load never clears the
+   note label by itself, so the start-up notice of behaviour 1 stays visible until the next
+   Convert or Swap. After every successful load the GUI's copy of the saved rates is replaced
+   by the loaded table (it is what the cache file now contains), so a later failure offers the
+   newest saved date.
 3. **Load failure** (`SourceUnavailableError` / `InvalidResponseError`): notification shows
    `str(error)` plus, if saved rates exist and are not already active,
    `Можно продолжить с сохранённым курсом от {saved.table.rates_date}.` and the offer button

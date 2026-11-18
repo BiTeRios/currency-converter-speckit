@@ -63,7 +63,8 @@ with urllib.request.urlopen(request, timeout=timeout) as response:
 - `urllib.error.HTTPError` with `code == 404` → `None`; any other `HTTPError` →
   `SourceUnavailableError`.
 - A response whose `status` is not 200 (without an exception) → `SourceUnavailableError`.
-- `urllib.error.URLError`, `TimeoutError`, `socket.timeout`, `ConnectionError`, any other `OSError`
+- `urllib.error.URLError`, `TimeoutError`, `socket.timeout`, `ConnectionError`, any other `OSError`,
+  and `http.client.HTTPException` (e.g. `IncompleteRead` from `response.read()`)
   → `SourceUnavailableError`.
 - Tests replace `urllib.request.urlopen` with `monkeypatch.setattr(urllib.request, "urlopen", fake)`;
   the fake returns an object usable as a context manager with `.status` and `.read()`, or raises.
