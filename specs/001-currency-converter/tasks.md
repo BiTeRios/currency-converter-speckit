@@ -123,7 +123,7 @@ official BNM rate with date and source shown.
 - [X] T021 Override `root.report_callback_exception` and route worker exceptions through the queue so unexpected errors are logged and shown as `Непредвиденная ошибка: … Приложение продолжает работу.` in `currency_converter/gui.py` (FR-019, contracts/gui.md behaviour 12)
 - [X] T022 [P] Configure `logging` (INFO to stderr) in `currency_converter/__main__.py`; log every load attempt, fallback day and cache error
 - [X] T023 [P] Write `README.md`: purpose, data source, requirements, `python -m currency_converter`, test command `python -m pytest`, environment variables `CURRENCY_CONVERTER_HOME` and `CURRENCY_CONVERTER_SOURCE_URL`
-- [ ] T024 Check that `python -m currency_converter` starts and walk through quickstart.md scenarios 1–10 as far as possible; fix any deviation from spec.md (constitution: this is the completion gate of the implementation stage)
+- [X] T024 Check that `python -m currency_converter` starts and walk through quickstart.md scenarios 1–10 as far as possible; fix any deviation from spec.md (constitution: this is the completion gate of the implementation stage)
 
 **Checkpoint**: implementation branch ready for its Pull Request
 
