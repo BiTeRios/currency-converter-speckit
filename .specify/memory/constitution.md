@@ -61,7 +61,8 @@ application that runs on any machine with Python installed.
 - Language and runtime: Python 3.11 or newer; desktop GUI built with Tkinter/ttk.
   A console-only application is not acceptable.
 - Data source: official exchange rates of the National Bank of Moldova (BNM), XML endpoint
-  `https://www.bnm.md/en/official_exchange_rates?get_xml=1&date=DD.MM.YYYY`.
+  `https://www.bnm.md/ru/official_exchange_rates?get_xml=1&date=DD.MM.YYYY`
+  (Russian-language export: Russian currency names for the Russian interface).
   Rates are quoted in Moldovan lei (MDL) per `Nominal` units of the foreign currency.
 - Network calls MUST use a timeout (10 seconds or less) and MUST NOT block the GUI thread.
 - The cache is a single JSON file in the user's application-data directory; it MUST survive
@@ -89,4 +90,4 @@ application that runs on any machine with Python installed.
 - Every Pull Request is reviewed against the Core Principles; a violation must either be fixed or
   justified in the plan's Complexity Tracking section.
 
-**Version**: 1.1.0 | **Ratified**: 2026-11-18 | **Last Amended**: 2026-11-18
+**Version**: 1.1.1 | **Ratified**: 2026-11-18 | **Last Amended**: 2026-11-18
