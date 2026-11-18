@@ -177,8 +177,10 @@ published rates. In the live application, choosing a past date shows that date's
   value 1 and nominal 1. All arithmetic MUST be exact decimal arithmetic.
 - **FR-006**: The result area MUST show the converted amount rounded half-up to 2 decimal places,
   the direct rate `1 FROM = X TO` and the reverse rate `1 TO = Y FROM`, each with 4 decimal places.
-- **FR-007**: The "Swap" button MUST exchange the source and target currencies; converting the
-  result back MUST return the original amount within ±0.01.
+- **FR-007**: The "Swap" button MUST exchange the source and target currencies. Converting the
+  displayed result back MUST return the original amount within the rounding tolerance of the
+  displayed result: `|back − amount| ≤ 0.01 + 0.005 × price(target) / price(source)`, where price
+  is the MDL value of one unit. For MDL, EUR and USD pairs this is within ±0.01.
 - **FR-008**: Selecting the same currency on both sides MUST NOT be an error: the result equals the
   amount, the rate is 1 and the note "Валюты совпадают — конвертация не требуется" is shown.
 - **FR-009**: The amount MUST be validated before conversion. Accepted: digits with at most one
@@ -240,7 +242,8 @@ published rates. In the live application, choosing a past date shows that date's
 - **SC-002**: When rates are already loaded, the result appears in under 0.5 seconds after
   pressing "Convert".
 - **SC-003**: For every currency pair in a real rate table, converting an amount and then
-  converting the result back returns the original amount within ±0.01.
+  converting the result back stays within the tolerance of FR-007; for pairs of MDL, EUR and USD
+  the difference is at most ±0.01.
 - **SC-004**: 100% of the invalid inputs listed in FR-009 and FR-011 produce an error message and
   no result.
 - **SC-005**: With the network disabled, the application starts, shows a message and converts
