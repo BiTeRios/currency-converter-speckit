@@ -212,3 +212,22 @@ def test_parse_rate_date_after_tomorrow_rejected(too_late_date: str):
     with pytest.raises(ValidationError) as exc_info:
         parse_rate_date(too_late_date, TODAY)
     assert str(exc_info.value) == expected_msg
+
+
+# Ревью, п. 7: только ASCII-цифры, пробелы — только между группами разрядов.
+@pytest.mark.parametrize(
+    "invalid_text",
+    ["1, 5", "1 2 3 , 4 5", "1 50", "١٢٣", "１２３", "12 ,5", "1  500"],
+)
+def test_parse_amount_rejects_loose_spacing_and_non_ascii_digits(invalid_text: str):
+    with pytest.raises(ValidationError) as exc_info:
+        parse_amount(invalid_text)
+    assert str(exc_info.value) == MSG_AMOUNT_NOT_NUMBER
+
+
+@pytest.mark.parametrize(
+    ("raw_text", "expected"),
+    [(" 1 500,50 ", Decimal("1500.50")), ("1 234 567", Decimal("1234567")), ("12 345", Decimal("12345"))],
+)
+def test_parse_amount_still_accepts_digit_groups(raw_text: str, expected: Decimal):
+    assert parse_amount(raw_text) == expected
