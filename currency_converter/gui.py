@@ -12,7 +12,6 @@ from tkinter import ttk
 from currency_converter import APP_TITLE
 from currency_converter.converter import convert, currency_options
 from currency_converter.errors import (
-    ConverterError,
     InvalidResponseError,
     NoRatesError,
     SourceUnavailableError,
@@ -208,7 +207,7 @@ class ConverterApp:
                 return
         combo.set("")
 
-    def _populate_currencies(self, table: RateTable) -> None:
+    def _populate_currencies(self, table: RateTable) -> bool:
         current_from = self._get_selected_from_code()
         current_to = self._get_selected_to_code()
 
@@ -219,31 +218,41 @@ class ConverterApp:
         self.to_combo["values"] = display_list
 
         available_codes = table.codes
+        selection_lost = False
 
-        if current_from and current_from in available_codes:
-            self._select_combo_by_code(self.from_combo, current_from, display_list)
-        elif "USD" in available_codes:
-            self._select_combo_by_code(self.from_combo, "USD", display_list)
-        elif display_list:
-            self.from_combo.current(0)
+        if current_from:
+            if current_from in available_codes:
+                self._select_combo_by_code(self.from_combo, current_from, display_list)
+            else:
+                self.from_combo.set("")
+                selection_lost = True
         else:
-            self.from_combo.set("")
+            if "USD" in available_codes:
+                self._select_combo_by_code(self.from_combo, "USD", display_list)
+            elif display_list:
+                self.from_combo.current(0)
+            else:
+                self.from_combo.set("")
 
-        if current_to and current_to in available_codes:
-            self._select_combo_by_code(self.to_combo, current_to, display_list)
-        elif "MDL" in available_codes:
-            self._select_combo_by_code(self.to_combo, "MDL", display_list)
-        elif display_list:
-            self.to_combo.current(0)
+        if current_to:
+            if current_to in available_codes:
+                self._select_combo_by_code(self.to_combo, current_to, display_list)
+            else:
+                self.to_combo.set("")
+                selection_lost = True
         else:
-            self.to_combo.set("")
+            if "MDL" in available_codes:
+                self._select_combo_by_code(self.to_combo, "MDL", display_list)
+            elif display_list:
+                self.to_combo.current(0)
+            else:
+                self.to_combo.set("")
 
-        if current_from and current_from not in available_codes:
-            self.note_label.config(text="Выберите валюту заново")
-        if current_to and current_to not in available_codes:
+        if selection_lost:
             self.note_label.config(text="Выберите валюту заново")
 
         self._update_convert_button_state()
+        return selection_lost
 
     def _can_convert(self) -> bool:
         if self.is_loading:
@@ -307,7 +316,7 @@ class ConverterApp:
     def _on_load_success(self, result: LoadResult) -> None:
         self.active = result
         self._saved_table = result.table
-        self._populate_currencies(result.table)
+        selection_lost = self._populate_currencies(result.table)
         self.status_label.config(text=status_line(result))
         self.notify_frame.grid_remove()
 
@@ -330,7 +339,7 @@ class ConverterApp:
         if self._pending_conversion is not None:
             amt, req_d = self._pending_conversion
             self._pending_conversion = None
-            if req_d == result.table.requested_date:
+            if not selection_lost and self._can_convert() and req_d == result.table.requested_date:
                 self._perform_conversion(amt, req_d)
 
     def _on_load_error(self, error: Exception) -> None:
@@ -343,7 +352,17 @@ class ConverterApp:
             is_cached_active = (
                 self.active is not None and self.active.status == LoadStatus.CACHED
             )
-            if self._saved_table is not None and not is_cached_active:
+            if is_cached_active:
+                saved_date_str = format_date(self.active.table.rates_date)
+                self.notify_msg.config(
+                    text=(
+                        f"{error}\nИсточник недоступен, продолжают использоваться "
+                        f"сохранённые курсы от {saved_date_str}."
+                    )
+                )
+                self.use_saved_btn.pack_forget()
+                self.retry_btn.pack(side="left", padx=4, pady=2)
+            elif self._saved_table is not None:
                 saved_date_str = format_date(self._saved_table.rates_date)
                 self.notify_msg.config(
                     text=f"{error}\nМожно продолжить с сохранённым курсом от {saved_date_str}."
@@ -363,7 +382,7 @@ class ConverterApp:
                 self.use_saved_btn.pack_forget()
                 self.retry_btn.pack(side="left", padx=4, pady=2)
         else:
-            logger.exception("Unexpected error during rate load")
+            logger.error("Unexpected error during rate load", exc_info=error)
             self.notify_frame.grid_remove()
             self.error_label.config(
                 text=f"Непредвиденная ошибка: {error}. Приложение продолжает работу."
@@ -459,12 +478,25 @@ class ConverterApp:
         self.error_label.config(text="")
         self.result_label.config(text=result_line(res))
         self.rates_label.config(text=rates_line(res))
+
+        notes: list[str] = []
+        current_note = self.note_label.cget("text")
+        if current_note:
+            notes.extend([n for n in current_note.split("\n") if n and n != SAME_CURRENCY_NOTE])
+
+        if self.active.status == LoadStatus.EARLIER_DATE:
+            notice = fallback_notice(self.active)
+            if notice and notice not in notes:
+                notes.append(notice)
+
+        if self.active.warning and self.active.warning not in notes:
+            notes.append(self.active.warning)
+
         if res.same_currency:
-            self.note_label.config(text=SAME_CURRENCY_NOTE)
-        elif self.active is not None and self.active.status == LoadStatus.EARLIER_DATE:
-            self.note_label.config(text=fallback_notice(self.active))
-        else:
-            self.note_label.config(text="")
+            if SAME_CURRENCY_NOTE not in notes:
+                notes.append(SAME_CURRENCY_NOTE)
+
+        self.note_label.config(text="\n".join(notes))
 
 
 def main() -> None:

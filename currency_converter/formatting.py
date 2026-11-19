@@ -68,10 +68,8 @@ def status_line(result: LoadResult) -> str:
         status_text = f"курс на {rates_date_str}"
     elif result.status == LoadStatus.EARLIER_DATE:
         status_text = f"курс на {rates_date_str} (за {requested_date_str} курс не опубликован)"
-    elif result.status == LoadStatus.CACHED:
+    else:  # LoadStatus.CACHED — других значений у перечисления нет
         status_text = f"сохранённый курс на {rates_date_str} (офлайн, загружен {fetched_at_str})"
-    else:
-        status_text = f"курс на {rates_date_str}"
 
     return f"Источник: {result.table.source} · {status_text}"
 

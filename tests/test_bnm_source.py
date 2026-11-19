@@ -325,10 +325,43 @@ def test_fetch_xml_http_404_error(monkeypatch):
 
 
 def test_fetch_xml_404_status_response(monkeypatch):
+    # Контракт: None даёт только HTTPError с кодом 404; любой не-200 статус
+    # без исключения — SourceUnavailableError.
     monkeypatch.setattr(
         urllib.request, "urlopen", lambda req, timeout=10: FakeResponse(b"", status=404)
     )
-    assert fetch_xml(date(2026, 11, 18)) is None
+    with pytest.raises(SourceUnavailableError):
+        fetch_xml(date(2026, 11, 18))
+
+
+def test_fetch_xml_invalid_base_url_is_source_unavailable(monkeypatch):
+    # Ревью, п. 5: неверный адрес источника не должен давать ValueError.
+    monkeypatch.setenv("CURRENCY_CONVERTER_SOURCE_URL", "notaurl")
+    with pytest.raises(SourceUnavailableError):
+        fetch_xml(date(2026, 11, 18))
+
+
+@pytest.mark.parametrize("value", ["Infinity", "inf", "NaN", "1E+30", "1e5", "1_8.5", "2000000"])
+def test_parse_rates_rejects_non_plain_or_absurd_values(value):
+    # Ревью, п. 4: принимаются только обычные десятичные числа в разумных пределах.
+    xml = (
+        '<ValCurs Date="18.11.2026">'
+        "<Valute><CharCode>USD</CharCode><Nominal>1</Nominal><Name>Доллар</Name><Value>18.3383</Value></Valute>"
+        f"<Valute><CharCode>EUR</CharCode><Nominal>1</Nominal><Name>Евро</Name><Value>{value}</Value></Valute>"
+        "</ValCurs>"
+    ).encode("utf-8")
+    table = parse_rates(xml, date(2026, 11, 18))
+    assert set(table.rates) == {"USD"}
+
+
+@pytest.mark.parametrize("nominal", ["1_0", "+1", "1.0", " "])
+def test_parse_rates_rejects_non_plain_nominal(nominal):
+    xml = (
+        '<ValCurs Date="18.11.2026">'
+        f"<Valute><CharCode>JPY</CharCode><Nominal>{nominal}</Nominal><Name>Иена</Name><Value>11.5</Value></Valute>"
+        "</ValCurs>"
+    ).encode("utf-8")
+    assert parse_rates(xml, date(2026, 11, 18)).rates == {}
 
 
 def test_fetch_xml_http_500_error(monkeypatch):

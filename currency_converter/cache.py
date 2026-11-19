@@ -3,6 +3,7 @@
 import json
 import logging
 import os
+import re
 import tempfile
 from datetime import date, datetime
 from decimal import Decimal
@@ -46,7 +47,13 @@ class RateCache:
     def load(self) -> RateTable | None:
         """Load and parse saved rate table. Never raises; returns None on failure or missing file."""
         self.last_error = None
+        if not self.path.exists():
+            return None
         if not self.path.is_file():
+            self.last_error = (
+                f"Сохранённый курс не удалось прочитать (путь не является файлом: {self.path}); "
+                "он будет заменён при следующей загрузке."
+            )
             return None
 
         try:
@@ -99,18 +106,29 @@ class RateCache:
                 nominal = item["nominal"]
                 value_str = item["value"]
 
-                if not isinstance(code, str) or len(code) != 3 or not code.isupper() or code == "MDL":
+                if (
+                    not isinstance(code, str)
+                    or not re.match(r"^[A-Z]{3}$", code)
+                    or code == "MDL"
+                ):
                     raise ValueError(f"invalid currency code: {code}")
                 if not isinstance(name, str):
                     raise ValueError(f"invalid currency name: {name}")
-                if not isinstance(nominal, int) or nominal < 1:
+                if (
+                    isinstance(nominal, bool)
+                    or not isinstance(nominal, int)
+                    or nominal < 1
+                    or nominal > 1000000
+                ):
                     raise ValueError(f"invalid nominal: {nominal}")
-                if not isinstance(value_str, str):
-                    raise ValueError(f"value must be string: {value_str}")
+                if not isinstance(value_str, str) or not re.match(
+                    r"^[0-9]+([.,][0-9]+)?$", value_str
+                ):
+                    raise ValueError(f"value must be decimal string: {value_str}")
 
-                value = Decimal(value_str)
-                if value <= 0:
-                    raise ValueError(f"value must be positive: {value}")
+                value = Decimal(value_str.replace(",", "."))
+                if value <= 0 or value > Decimal("1000000"):
+                    raise ValueError(f"value out of range: {value}")
 
                 rates[code] = CurrencyRate(
                     code=code,
