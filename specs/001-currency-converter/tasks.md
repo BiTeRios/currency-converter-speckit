@@ -141,7 +141,7 @@ the real %APPDATA% (every `RateService` and `RateCache` in tests uses a fake or 
 - [X] T029 [P] [US4] Write `tests/test_rate_service.py` with a fake fetcher `{date: bytes | None | Exception}` and a `tmp_path` or fake cache: live result; `None` for D and D−1, rates at D−2 → `EARLIER_DATE`, `rates_date` D−2, `requested_date` D; empty `ValCurs` counts as no data; 11 misses → `NoRatesError` and exactly 11 fetch calls; `SourceUnavailableError`/`InvalidResponseError` propagate without fallback; success is saved to the cache; a cache whose `save` raises `OSError` → result still returned with `warning` set; `load_saved` returns `CACHED` or `None`
 - [X] T030 [P] [US3] Write `tests/test_cache.py` in `tmp_path`: save/load round trip keeps exact decimals, names and dates; missing file → `None` and `last_error is None`; garbage, wrong `version` or missing keys → `None` and `last_error` set; no temp files left; `default_cache_path` honours `CURRENCY_CONVERTER_HOME` and ignores an empty value
 - [X] T031 [P] Write `tests/test_formatting.py`: thousands grouping, comma separator, half-up rounding, `< 0,01` and `< 0,0001` rules, `result_line`, `rates_line`, `status_line` for all three statuses, `fallback_notice`
-- [ ] T032 Run `python -m pytest`; fix failing production code only where the test reflects the contracts, and record every such fix in the Pull Request description
+- [X] T032 Run `python -m pytest`; fix failing production code only where the test reflects the contracts, and record every such fix in the Pull Request description
 
 ---
 
