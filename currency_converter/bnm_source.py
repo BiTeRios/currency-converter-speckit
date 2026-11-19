@@ -36,16 +36,14 @@ def fetch_xml(day: date, timeout: float = TIMEOUT_SECONDS) -> bytes | None:
     """Fetch raw XML rates for the given date from BNM.
 
     Returns bytes on HTTP 200 with non-empty body;
-    Returns None on HTTP 404 or empty/whitespace body;
-    Raises SourceUnavailableError on other HTTP errors, timeouts, or network failures.
+    Returns None on HTTP 404 (HTTPError) or empty/whitespace body;
+    Raises SourceUnavailableError on other HTTP errors, non-200 responses, timeouts, network failures, or invalid URLs.
     """
-    url = build_url(day)
-    request = urllib.request.Request(url, headers={"User-Agent": USER_AGENT})
     try:
+        url = build_url(day)
+        request = urllib.request.Request(url, headers={"User-Agent": USER_AGENT})
         with urllib.request.urlopen(request, timeout=timeout) as response:
             status = getattr(response, "status", 200)
-            if status == 404:
-                return None
             if status != 200:
                 raise SourceUnavailableError(f"HTTP {status}")
             body = response.read()
@@ -63,6 +61,7 @@ def fetch_xml(day: date, timeout: float = TIMEOUT_SECONDS) -> bytes | None:
         ConnectionError,
         OSError,
         http.client.HTTPException,
+        ValueError,
     ) as e:
         raise SourceUnavailableError(str(e)) from e
 
@@ -122,9 +121,12 @@ def parse_rates(
         nominal_el = valute.find("Nominal")
         if nominal_el is None or not nominal_el.text:
             continue
+        nom_text = nominal_el.text.strip()
+        if not re.match(r"^[0-9]+$", nom_text):
+            continue
         try:
-            nominal = int(nominal_el.text.strip())
-            if nominal < 1:
+            nominal = int(nom_text)
+            if nominal < 1 or nominal > 1000000:
                 continue
         except ValueError:
             continue
@@ -132,10 +134,13 @@ def parse_rates(
         value_el = valute.find("Value")
         if value_el is None or not value_el.text:
             continue
+        val_text = value_el.text.strip()
+        if not re.match(r"^[0-9]+([.,][0-9]+)?$", val_text):
+            continue
         try:
-            val_str = value_el.text.strip().replace(",", ".")
+            val_str = val_text.replace(",", ".")
             value = Decimal(val_str)
-            if value <= 0:
+            if value <= 0 or value > Decimal("1000000"):
                 continue
         except (InvalidOperation, ValueError):
             continue

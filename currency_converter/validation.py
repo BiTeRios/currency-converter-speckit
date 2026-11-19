@@ -24,10 +24,11 @@ def parse_amount(text: str) -> Decimal:
     if not stripped:
         raise ValidationError(MSG_AMOUNT_EMPTY)
 
-    cleaned = stripped.replace(" ", "").replace("\u00a0", "").replace(",", ".")
-
-    if not re.match(r"^-?\d+(\.\d+)?$", cleaned):
+    # Only ASCII digits, optional thousands grouping by space/NBSP, and optional . or , fraction
+    if not re.match(r"^-?(?:[0-9]{1,3}(?:[ \u00a0][0-9]{3})+|[0-9]+)(?:[.,][0-9]+)?$", stripped):
         raise ValidationError(MSG_AMOUNT_NOT_NUMBER)
+
+    cleaned = stripped.replace(" ", "").replace("\u00a0", "").replace(",", ".")
 
     try:
         val = Decimal(cleaned)
