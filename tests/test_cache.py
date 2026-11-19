@@ -170,6 +170,12 @@ def test_cache_load_missing_required_keys(tmp_path, missing_key):
         {"code": "USD", "name": "Доллар", "nominal": 1, "value": 18.0},  # Value float, not string
         {"name": "Доллар", "nominal": 1, "value": "18.0"},  # Missing code
         {"code": "USD", "name": "Доллар", "value": "18.0"},  # Missing nominal
+        # Ревью, п. 4 и 7:
+        {"code": "USD", "name": "Доллар", "nominal": True, "value": "18.0"},  # bool вместо int
+        {"code": "U1D", "name": "Доллар", "nominal": 1, "value": "18.0"},  # не буквы
+        {"code": "USD", "name": "Доллар", "nominal": 1, "value": "Infinity"},  # бесконечность
+        {"code": "USD", "name": "Доллар", "nominal": 1, "value": "NaN"},  # не число
+        {"code": "USD", "name": "Доллар", "nominal": 1, "value": "1E+30"},  # экспонента
     ],
 )
 def test_cache_load_invalid_rate_items(tmp_path, invalid_rate):
@@ -251,3 +257,13 @@ def test_default_cache_path_ignores_empty_or_whitespace_env(tmp_path, monkeypatc
     monkeypatch.setenv(CACHE_HOME_ENV, "   ")
     resolved_spaces = default_cache_path()
     assert resolved_spaces == fake_appdata / "CurrencyConverter" / CACHE_FILE_NAME
+
+
+def test_cache_path_is_a_directory(tmp_path):
+    # Ревью, п. 7: путь кэша существует, но это папка — None и понятная причина.
+    cache_dir = tmp_path / "rates_cache.json"
+    cache_dir.mkdir()
+    cache = RateCache(cache_dir)
+    assert cache.load() is None
+    assert cache.last_error is not None
+    assert cache.last_error.startswith("Сохранённый курс не удалось прочитать")
