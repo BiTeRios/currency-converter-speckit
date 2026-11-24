@@ -7,7 +7,7 @@ import tkinter as tk
 from collections.abc import Callable
 from datetime import date
 from decimal import Decimal
-from tkinter import ttk
+from tkinter import font, ttk
 
 from currency_converter import APP_TITLE
 from currency_converter.converter import convert, currency_options
@@ -52,6 +52,7 @@ class ConverterApp:
         self.queue: queue.Queue[tuple[str, object]] = queue.Queue()
 
         self._init_window()
+        self._configure_styles()
         self._create_widgets()
         self._setup_bindings()
         self._setup_error_handler()
@@ -60,100 +61,297 @@ class ConverterApp:
 
     def _init_window(self) -> None:
         self.root.title(APP_TITLE)
+        self.root.geometry("840x480")
         self.root.minsize(560, 460)
         self.root.resizable(True, True)
 
+    def _configure_styles(self) -> None:
+        style = ttk.Style(self.root)
+        style.theme_use("clam")
+        family = font.nametofont("TkDefaultFont", root=self.root).actual("family")
+
+        canvas = "#edf4fc"
+        surface = "#ffffff"
+        result_surface = "#f3f8ff"
+        status_surface = "#e2eefc"
+        ink = "#142d4b"
+        muted = "#435d7b"
+        border = "#cbd9eb"
+        accent = "#215bc2"
+        focus = "#2364d4"
+
+        style.configure("Converter.TFrame", background=canvas)
+        style.configure("ConverterForm.TFrame", background=surface)
+        style.configure("ConverterResult.TFrame", background=result_surface)
+        style.configure("ConverterStatus.TFrame", background=status_surface)
+        style.configure(
+            "ConverterTitle.TLabel", background=canvas, foreground=ink,
+            font=(family, 25, "bold"),
+        )
+        style.configure(
+            "ConverterField.TLabel", background=surface, foreground=ink,
+            font=(family, 10, "bold"),
+        )
+        style.configure(
+            "ConverterError.TLabel", background=surface, foreground="#a82325",
+            font=(family, 10),
+        )
+        style.configure(
+            "ConverterResultTitle.TLabel", background=result_surface, foreground=muted,
+            font=(family, 11, "bold"),
+        )
+        style.configure(
+            "ConverterAmount.TLabel", background=result_surface, foreground=accent,
+            font=(family, 18, "bold"),
+        )
+        style.configure(
+            "ConverterDetail.TLabel", background=result_surface, foreground=muted,
+            font=(family, 10),
+        )
+        style.configure(
+            "ConverterStatus.TLabel", background=status_surface, foreground=ink,
+            font=(family, 10),
+        )
+        style.configure(
+            "ConverterLoading.TLabel", background=canvas, foreground=accent,
+            font=(family, 10, "bold"),
+        )
+        style.configure(
+            "Converter.Vertical.TScrollbar", background=border, troughcolor=canvas,
+            bordercolor=canvas, lightcolor=border, darkcolor=border, arrowcolor=muted,
+        )
+
+        for name in ("Converter.TEntry", "Converter.TCombobox"):
+            style.configure(
+                name, padding=(9, 4), foreground=ink, fieldbackground=surface,
+                background=surface, bordercolor=border, lightcolor=border, darkcolor=border,
+                selectforeground=ink, selectbackground=status_surface, insertcolor=ink,
+            )
+            style.map(
+                name, fieldbackground=[("readonly", surface)],
+                bordercolor=[("focus", focus)], lightcolor=[("focus", focus)],
+                darkcolor=[("focus", focus)],
+            )
+
+        style.configure(
+            "ConverterPrimary.TButton", padding=(11, 7), background=accent,
+            foreground=surface, bordercolor=accent, lightcolor=accent, darkcolor=accent,
+            focuscolor=surface, font=(family, 10, "bold"),
+        )
+        style.map(
+            "ConverterPrimary.TButton",
+            background=[("disabled", "#e4edf9"), ("pressed", "#164494"), ("active", "#1c51ad")],
+            foreground=[("disabled", "#526b8a")],
+            bordercolor=[("disabled", "#e4edf9")],
+            lightcolor=[("disabled", "#e4edf9")], darkcolor=[("disabled", "#e4edf9")],
+        )
+        style.configure(
+            "ConverterSecondary.TButton", padding=(9, 5), background=surface, foreground=ink,
+            bordercolor=border, lightcolor=border, darkcolor=border, focuscolor=focus,
+            font=(family, 10),
+        )
+        style.map(
+            "ConverterSecondary.TButton",
+            background=[("disabled", "#edf2fa"), ("pressed", "#d7e7fd"), ("active", "#eaf3ff")],
+            foreground=[("disabled", "#526b8a")], bordercolor=[("focus", focus)],
+        )
+
     def _create_widgets(self) -> None:
-        main_frame = ttk.Frame(self.root, padding=16)
+        main_frame = ttk.Frame(self.root, padding=(20, 16), style="Converter.TFrame")
         main_frame.pack(fill="both", expand=True)
+        main_frame.columnconfigure(0, weight=1)
+        main_frame.rowconfigure(1, weight=1)
 
-        main_frame.columnconfigure(1, weight=1)
+        header = ttk.Frame(main_frame, style="Converter.TFrame")
+        header.grid(row=0, column=0, sticky="ew", pady=(0, 10))
+        header.columnconfigure(0, weight=1)
+        ttk.Label(header, text="Конвертер валют", style="ConverterTitle.TLabel").grid(
+            row=0, column=0, sticky="w"
+        )
+        self.loading_label = ttk.Label(
+            header, text="Загрузка курса…", style="ConverterLoading.TLabel"
+        )
+        self.loading_label.grid(row=0, column=1, sticky="e", padx=(8, 0))
+        self.loading_label.grid_remove()
 
-        # Row 1: Сумма
-        ttk.Label(main_frame, text="Сумма:").grid(
-            row=0, column=0, sticky="w", pady=4, padx=(0, 8)
+        content = self._create_content(main_frame)
+        content.columnconfigure(0, minsize=288, weight=3)
+        content.columnconfigure(1, minsize=205, weight=2)
+        content.rowconfigure(0, weight=1)
+
+        form = ttk.Frame(content, padding=(16, 11), style="ConverterForm.TFrame")
+        form.grid(row=0, column=0, sticky="nsew", padx=(0, 12))
+        form.columnconfigure(1, weight=1)
+
+        ttk.Label(form, text="Сумма:", style="ConverterField.TLabel").grid(
+            row=0, column=0, sticky="w", padx=(0, 9)
         )
         self.amount_var = tk.StringVar()
-        self.amount_entry = ttk.Entry(main_frame, textvariable=self.amount_var)
-        self.amount_entry.grid(row=0, column=1, columnspan=2, sticky="ew", pady=4)
+        self.amount_entry = ttk.Entry(
+            form, textvariable=self.amount_var, width=1, style="Converter.TEntry"
+        )
+        self.amount_entry.grid(row=0, column=1, columnspan=2, sticky="ew")
 
-        # Row 2: Из валюты + ⇄ Поменять
-        ttk.Label(main_frame, text="Из валюты:").grid(
-            row=1, column=0, sticky="w", pady=4, padx=(0, 8)
+        ttk.Label(form, text="Из валюты:", style="ConverterField.TLabel").grid(
+            row=1, column=0, columnspan=3, sticky="w", pady=(7, 2)
         )
         self.from_var = tk.StringVar()
-        self.from_combo = ttk.Combobox(main_frame, textvariable=self.from_var, state="readonly")
-        self.from_combo.grid(row=1, column=1, sticky="ew", pady=4)
-        self.swap_btn = ttk.Button(main_frame, text="⇄ Поменять", command=self.on_swap)
-        self.swap_btn.grid(row=1, column=2, padx=(8, 0), pady=4)
+        self.from_combo = ttk.Combobox(
+            form, textvariable=self.from_var, state="readonly", width=1, style="Converter.TCombobox"
+        )
+        self.from_combo.grid(row=2, column=0, columnspan=3, sticky="ew")
+        self.swap_btn = ttk.Button(
+            form, text="⇄ Поменять", command=self.on_swap, style="ConverterSecondary.TButton"
+        )
+        self.swap_btn.grid(row=1, column=2, sticky="e", pady=(5, 2))
 
-        # Row 3: В валюту
-        ttk.Label(main_frame, text="В валюту:").grid(
-            row=2, column=0, sticky="w", pady=4, padx=(0, 8)
+        ttk.Label(form, text="В валюту:", style="ConverterField.TLabel").grid(
+            row=3, column=0, columnspan=3, sticky="w", pady=(7, 2)
         )
         self.to_var = tk.StringVar()
-        self.to_combo = ttk.Combobox(main_frame, textvariable=self.to_var, state="readonly")
-        self.to_combo.grid(row=2, column=1, columnspan=2, sticky="ew", pady=4)
+        self.to_combo = ttk.Combobox(
+            form, textvariable=self.to_var, state="readonly", width=1, style="Converter.TCombobox"
+        )
+        self.to_combo.grid(row=4, column=0, columnspan=3, sticky="ew")
 
-        # Row 4: Дата курса + Сегодня
-        ttk.Label(main_frame, text="Дата курса:").grid(
-            row=3, column=0, sticky="w", pady=4, padx=(0, 8)
+        date_controls = ttk.Frame(form, style="ConverterForm.TFrame")
+        date_controls.grid(row=5, column=0, columnspan=3, sticky="ew", pady=(9, 0))
+        date_controls.columnconfigure(1, weight=1)
+        ttk.Label(date_controls, text="Дата курса:", style="ConverterField.TLabel").grid(
+            row=0, column=0, sticky="w", padx=(0, 9)
         )
         self.date_var = tk.StringVar(value=format_date(self.today()))
-        self.date_entry = ttk.Entry(main_frame, textvariable=self.date_var)
-        self.date_entry.grid(row=3, column=1, sticky="ew", pady=4)
-        self.today_btn = ttk.Button(main_frame, text="Сегодня", command=self.on_today)
-        self.today_btn.grid(row=3, column=2, padx=(8, 0), pady=4)
-
-        # Row 5: Конвертировать and Обновить курс
-        btn_frame = ttk.Frame(main_frame)
-        btn_frame.grid(row=4, column=0, columnspan=3, pady=(8, 4), sticky="w")
-        self.convert_btn = ttk.Button(
-            btn_frame, text="Конвертировать", command=self.on_convert, default="active"
+        self.date_entry = ttk.Entry(
+            date_controls, textvariable=self.date_var, width=1, style="Converter.TEntry"
         )
-        self.convert_btn.pack(side="left", padx=(0, 8))
-        self.refresh_btn = ttk.Button(btn_frame, text="Обновить курс", command=self.on_refresh)
+        self.date_entry.grid(row=0, column=1, sticky="ew")
+        self.today_btn = ttk.Button(
+            date_controls, text="Сегодня", command=self.on_today, width=0,
+            style="ConverterSecondary.TButton",
+        )
+        self.today_btn.grid(row=0, column=2, sticky="ew", padx=(7, 0))
+
+        btn_frame = ttk.Frame(form, style="ConverterForm.TFrame")
+        btn_frame.grid(row=6, column=0, columnspan=3, pady=(10, 0), sticky="ew")
+        self.convert_btn = ttk.Button(
+            btn_frame, text="Конвертировать", command=self.on_convert, default="active",
+            style="ConverterPrimary.TButton",
+        )
+        self.convert_btn.pack(side="left", fill="x", expand=True, padx=(0, 7))
+        self.refresh_btn = ttk.Button(
+            btn_frame, text="Обновить курс", command=self.on_refresh,
+            style="ConverterSecondary.TButton",
+        )
         self.refresh_btn.pack(side="left")
 
-        # Row 6: error label (red)
-        self.error_label = ttk.Label(main_frame, text="", foreground="red", wraplength=520)
-        self.error_label.grid(row=5, column=0, columnspan=3, sticky="w", pady=(2, 4))
+        self.error_label = ttk.Label(form, style="ConverterError.TLabel")
+        self.error_label.grid(row=7, column=0, columnspan=3, sticky="ew", pady=(5, 0))
+        self._wrap_labels(form, 32, self.error_label)
 
-        # Row 7: result label
-        self.result_label = ttk.Label(
-            main_frame, text="", font=("TkDefaultFont", 14, "bold"), wraplength=520
+        result = ttk.Frame(content, padding=(14, 13), style="ConverterResult.TFrame")
+        result.grid(row=0, column=1, sticky="nsew")
+        result.columnconfigure(0, weight=1)
+
+        ttk.Label(result, text="Результат", style="ConverterResultTitle.TLabel").grid(
+            row=0, column=0, sticky="w", pady=(0, 8)
         )
-        self.result_label.grid(row=6, column=0, columnspan=3, sticky="w", pady=4)
+        self.result_label = ttk.Label(result, style="ConverterAmount.TLabel")
+        self.result_label.grid(row=1, column=0, sticky="ew", pady=(0, 4))
+        self.rates_label = ttk.Label(result, style="ConverterDetail.TLabel")
+        self.rates_label.grid(row=2, column=0, sticky="ew", pady=(0, 8))
 
-        # Row 8: rates label
-        self.rates_label = ttk.Label(main_frame, text="", wraplength=520)
-        self.rates_label.grid(row=7, column=0, columnspan=3, sticky="w", pady=2)
+        status = ttk.Frame(result, padding=(9, 9), style="ConverterStatus.TFrame")
+        status.grid(row=3, column=0, sticky="ew")
+        self.status_label = ttk.Label(
+            status, text="Курс не загружен", style="ConverterStatus.TLabel"
+        )
+        self.status_label.pack(fill="x")
+        self._wrap_labels(status, 18, self.status_label)
 
-        # Row 9: note label
-        self.note_label = ttk.Label(main_frame, text="", wraplength=520)
-        self.note_label.grid(row=8, column=0, columnspan=3, sticky="w", pady=2)
+        self.note_label = ttk.Label(result, style="ConverterDetail.TLabel")
+        self.note_label.grid(row=4, column=0, sticky="ew", pady=(8, 0))
+        self._wrap_labels(result, 28, self.result_label, self.rates_label, self.note_label)
 
-        # Row 10: status line
-        self.status_label = ttk.Label(main_frame, text="Курс не загружен", wraplength=520)
-        self.status_label.grid(row=9, column=0, columnspan=3, sticky="w", pady=(4, 2))
-
-        # Row 11: notification frame
-        self.notify_frame = ttk.Frame(main_frame)
-        self.notify_frame.grid(row=10, column=0, columnspan=3, sticky="ew", pady=4)
-        self.notify_msg = ttk.Label(self.notify_frame, text="", wraplength=520)
-        self.notify_msg.pack(anchor="w", pady=(0, 4))
-        self.notify_buttons = ttk.Frame(self.notify_frame)
+        self.notify_frame = ttk.Frame(
+            main_frame, padding=(12, 9), style="ConverterStatus.TFrame"
+        )
+        self.notify_frame.grid(row=2, column=0, sticky="ew", pady=(10, 0))
+        self.notify_msg = ttk.Label(self.notify_frame, style="ConverterStatus.TLabel")
+        self.notify_msg.pack(fill="x", pady=(0, 4))
+        self.notify_buttons = ttk.Frame(self.notify_frame, style="ConverterStatus.TFrame")
         self.notify_buttons.pack(anchor="w")
-        self.use_saved_btn = ttk.Button(self.notify_buttons, text="", command=self.on_use_saved)
-        self.retry_btn = ttk.Button(self.notify_buttons, text="Повторить", command=self.on_retry)
+        self.use_saved_btn = ttk.Button(
+            self.notify_buttons, command=self.on_use_saved, style="ConverterSecondary.TButton"
+        )
+        self.retry_btn = ttk.Button(
+            self.notify_buttons, text="Повторить", command=self.on_retry,
+            style="ConverterSecondary.TButton",
+        )
+        self._wrap_labels(self.notify_frame, 24, self.notify_msg)
         self.notify_frame.grid_remove()
 
-        # Row 12: loading label
-        self.loading_label = ttk.Label(
-            main_frame, text="Загрузка курса…", font=("TkDefaultFont", 9, "italic")
+    def _create_content(self, main_frame: ttk.Frame) -> ttk.Frame:
+        viewport = ttk.Frame(main_frame, style="Converter.TFrame")
+        viewport.grid(row=1, column=0, sticky="nsew")
+        viewport.columnconfigure(0, weight=1)
+        viewport.rowconfigure(0, weight=1)
+
+        background = ttk.Style(self.root).lookup("Converter.TFrame", "background")
+        canvas = tk.Canvas(viewport, background=background, highlightthickness=0)
+        canvas.grid(row=0, column=0, sticky="nsew")
+        scrollbar = ttk.Scrollbar(
+            viewport, orient="vertical", command=canvas.yview,
+            style="Converter.Vertical.TScrollbar",
         )
-        self.loading_label.grid(row=11, column=0, columnspan=3, sticky="w", pady=2)
-        self.loading_label.grid_remove()
+        canvas.configure(yscrollcommand=scrollbar.set)
+        scrollbar.grid(row=0, column=1, sticky="ns")
+        scrollbar.grid_remove()
+
+        content = ttk.Frame(canvas, style="Converter.TFrame")
+        pane = canvas.create_window(0, 0, window=content, anchor="nw")
+
+        def fit_content(_event: tk.Event) -> None:
+            width = canvas.winfo_width()
+            view_height = canvas.winfo_height()
+            content_height = content.winfo_reqheight()
+            height = max(content_height, view_height)
+            canvas.itemconfigure(pane, width=width, height=height)
+            canvas.configure(scrollregion=(0, 0, width, height))
+            if content_height > view_height:
+                scrollbar.grid()
+            else:
+                scrollbar.grid_remove()
+
+        def reveal_focus(event: tk.Event) -> None:
+            widget = event.widget
+            if not isinstance(widget, tk.Misc):
+                return
+            ancestor = widget.master
+            while ancestor is not None and ancestor is not content:
+                ancestor = ancestor.master
+            if ancestor is None or not scrollbar.winfo_ismapped():
+                return
+            top = widget.winfo_rooty() - content.winfo_rooty()
+            bottom = top + widget.winfo_height()
+            view_top = canvas.canvasy(0)
+            view_height = canvas.winfo_height()
+            if top < view_top:
+                canvas.yview_moveto(top / content.winfo_height())
+            elif bottom > view_top + view_height:
+                canvas.yview_moveto((bottom - view_height) / content.winfo_height())
+
+        self.root.bind("<Configure>", fit_content, add="+")
+        self.root.bind("<FocusIn>", reveal_focus, add="+")
+        return content
+
+    @staticmethod
+    def _wrap_labels(frame: ttk.Frame, padding: int, *labels: ttk.Label) -> None:
+        def update_wrap(event: tk.Event) -> None:
+            width = max(1, event.width - padding)
+            for label in labels:
+                label.configure(wraplength=width)
+
+        frame.bind("<Configure>", update_wrap)
 
     def _setup_bindings(self) -> None:
         self.amount_var.trace_add("write", lambda *_: self._update_convert_button_state())
