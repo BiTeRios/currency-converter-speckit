@@ -1,96 +1,77 @@
-# Конвертер валют — официальный курс НБМ
+# BNM Currency Converter
 
-Десктопное приложение с графическим интерфейсом на базе Tkinter/ttk для конвертации валют по официальным обменным курсам Национального банка Молдовы (НБМ).
+Lab 3 uses the official exchange rates of the National Bank of Moldova (BNM).
+The Tkinter desktop app and the local browser app support MDL and around 40
+foreign currencies. Both use the same Python core and offer the last saved
+rates when the source is unavailable.
 
-## Назначение
+## Run
 
-Приложение позволяет:
-- Выполнять конвертацию между молдавским леем (MDL) и ~40 иностранными валютами в обоих направлениях, а также прямые кросс-конвертации между иностранными валютами через MDL.
-- Получать официальные курсы на сегодняшнюю или выбранную календарную дату.
-- Автоматически использовать курс за ближайший предшествующий рабочий день (до 10 дней назад), если на выбранную дату (выходной или праздничный день) курс не публиковался, с явным уведомлением пользователя.
-- Работать в автономном режиме (офлайн): при отсутствии сети или недоступности источника приложение предлагает использовать последние успешно сохранённые курсы.
-- Корректно валидировать суммы и даты, защищая от некорректных данных и вычислений с плавающей точкой (все финансовые вычисления производятся в точной десятичной арифметике `Decimal`).
+Use Python 3.11 or newer. The desktop app also needs Tkinter, which is included
+in the standard Windows Python installer. Both apps use the Python standard library.
 
-## Источник данных
-
-Официальный XML-экспорт Национального банка Молдовы:
-- URL: `https://www.bnm.md/ru/official_exchange_rates?get_xml=1&date=DD.MM.YYYY`
-- Экспорт на русском языке с русскими названиями валют.
-- Котировки публикуются в молдавских леях (MDL) за указанный номинал (`Nominal`) единиц иностранной валюты (например, курс JPY котируется за 100 японских иен).
-
-## Требования к окружению
-
-- **Python**: версия 3.11 или новее.
-- **Tkinter**: модуль графического интерфейса входит в стандартную поставку Python для Windows.
-- **Зависимости времени выполнения (runtime)**: отсутствуют, используется исключительно стандартная библиотека Python (`tkinter`, `urllib`, `xml.etree`, `decimal`, `json`, `datetime`, `pathlib` и др.).
-- **Зависимости для разработки**: `pytest>=8` (для запуска модульных тестов).
-
-## Установка и настройка окружения
-
-1. Клонируйте репозиторий и перейдите в корневую директорию проекта:
-   ```bash
-   cd currency-converter-speckit
-   ```
-
-2. Создайте и активируйте виртуальное окружение:
-   - **Windows (PowerShell)**:
-     ```powershell
-     python -m venv .venv
-     .venv\Scripts\Activate.ps1
-     ```
-   - **Linux / macOS**:
-     ```bash
-     python3 -m venv .venv
-     source .venv/bin/activate
-     ```
-
-3. Установите зависимости для разработки и тестирования:
-   ```bash
-   pip install -r requirements-dev.txt
-   ```
-
-## Запуск приложения
-
-Запуск конвертера выполняется командой:
-```powershell
-python -m currency_converter
+```sh
+python -m currency_converter       # Tkinter desktop app
+python -m currency_converter.web   # Browser app
 ```
 
-### Основные элементы интерфейса:
-- **Поле «Сумма»**: ввод конвертируемой суммы (до 2 знаков после запятой, до 1 000 000 000 000).
-- **Списки «Из валюты» и «В валюту»**: выбор кодов валют (по умолчанию `USD` → `MDL`). Кнопка `⇄ Поменять` меняет валюты местами.
-- **Поле «Дата курса»**: ввод даты в формате `ДД.ММ.ГГГГ` (диапазон: от 01.01.2000 до завтрашнего дня). Кнопка `Сегодня` возвращает текущую дату.
-- **Кнопка «Конвертировать»** (или клавиша `Enter`): активна только при заполненной сумме и выбранных валютах.
-- **Кнопка «Обновить курс»**: принудительная загрузка актуальных курсов на указанную дату.
-- **Область результатов и статуса**: отображает пересчитанную сумму, прямую и обратную котировку, источник данных, статус курса (актуальный, более ранний или сохранённый офлайн).
+Open [the local web app](http://127.0.0.1:8000) after starting the web command.
+Enter an amount, choose a currency pair, and convert with the button or Enter.
+You can swap currencies, choose a date in DD.MM.YYYY format, reset it to today,
+or refresh the rates for that date. Each result includes both directions of the
+rate, its effective date, and the source.
 
-## Тестирование
+## Architecture
 
-Запуск модульных тестов выполняется одной командой:
-```powershell
+```mermaid
+flowchart LR
+    Desktop["Tkinter desktop"] --> Core["Python validation, conversion, and formatting"]
+    Browser["Local browser"] --> Server["Loopback HTTP server"] --> Core
+    Desktop --> Service["RateService"]
+    Server --> Service
+    Service --> Source["BNM XML for a requested date"]
+    Service <--> Cache["Last saved rate table in JSON"]
+```
+
+The [BNM XML endpoint](https://www.bnm.md/ru/official_exchange_rates) publishes
+quotes in MDL per stated nominal. For example, the JPY quote applies to 100 yen.
+The converter divides by the nominal and uses `Decimal` for cross-rates through MDL.
+
+## How the app selects a rate
+
+```mermaid
+flowchart TD
+    Request["Request rates for the selected date"] --> Available{"Usable rates?"}
+    Available -->|Yes| Use["Show the effective date and save the rates"]
+    Available -->|No rates published| Earlier["Try earlier dates, up to ten days back"]
+    Earlier -->|Found| Use
+    Earlier -->|None found| Missing["Show that no rates were published"]
+    Available -->|Source error| Cache{"Saved rate available?"}
+    Earlier -->|Source error| Cache
+    Cache -->|Yes| Offer["Show its date and ask for confirmation"]
+    Offer -->|Accepted| Offline["Use the saved rate and show offline status"]
+    Cache -->|No| Retry["Show the error and offer a retry"]
+```
+
+## Unit tests
+
+```sh
+python -m venv .venv
+# Activate .venv with .venv\Scripts\Activate.ps1 on PowerShell
+# or source .venv/bin/activate on Linux and macOS.
+python -m pip install -r requirements-dev.txt
 python -m pytest
 ```
-*Примечание: тесты полностью автономны, используют тестовые фикстуры и изолированный кэш во временной директории, не требуют сетевого подключения и не обращаются к сайту НБМ.*
 
-## Переменные окружения
+The unit suite uses local fixtures and temporary cache files. It does not contact BNM.
 
-Для гибкой настройки и тестирования предусмотрены следующие переменные окружения:
+## Configuration
 
-- **`CURRENCY_CONVERTER_HOME`**
-  Путь к директории для хранения локального кэша `rates_cache.json`.
-  Если переменная не задана или пуста, путь определяется автоматически:
-  - Windows: `%APPDATA%\CurrencyConverter`
-  - Linux / macOS: `$XDG_DATA_HOME/currency-converter` (либо `~/.local/share/currency-converter`)
-  - Имя файла кэша: `rates_cache.json`
+| Environment variable | Effect |
+| --- | --- |
+| `CURRENCY_CONVERTER_HOME` | Directory for `rates_cache.json`. The default is `%APPDATA%\CurrencyConverter` on Windows or `$XDG_DATA_HOME/currency-converter` on Linux and macOS, falling back to `~/.local/share/currency-converter`. |
+| `CURRENCY_CONVERTER_SOURCE_URL` | Base URL of the BNM XML source. Set it to `http://127.0.0.1:9/` to demonstrate offline recovery, then remove the override to restore live loading. |
 
-- **`CURRENCY_CONVERTER_SOURCE_URL`**
-  Позволяет переопределить базовый URL источника котировок (по умолчанию: `https://www.bnm.md/ru/official_exchange_rates`).
-  Переменная считывается при каждом сетевом запросе. Например, для имитации недоступности сети при демонстрации автономного режима:
-  ```powershell
-  $env:CURRENCY_CONVERTER_SOURCE_URL = "http://127.0.0.1:9/"
-  python -m currency_converter
-  ```
-  После завершения проверки переменную можно удалить:
-  ```powershell
-  Remove-Item Env:CURRENCY_CONVERTER_SOURCE_URL
-  ```
+The [original specification](specs/001-currency-converter/spec.md),
+[interface follow-up](specs/002-web-ui/spec.md), and [lab report](REPORT.md)
+document the requirements and development process.

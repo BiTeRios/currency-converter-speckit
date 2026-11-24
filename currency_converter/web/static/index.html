@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Конвертер валют НБМ</title>
+    <link rel="icon" href="data:,">
+    <link rel="stylesheet" href="/styles.css">
+    <script src="/app.js" defer></script>
+  </head>
+  <body>
+    <main class="app">
+      <header class="page-heading">
+        <h1>Конвертер валют</h1>
+        <p>Официальные курсы Национального банка Молдовы</p>
+      </header>
+
+      <div class="workspace">
+        <section class="card" aria-labelledby="form-title">
+          <h2 id="form-title">Параметры</h2>
+          <form id="converter" novalidate>
+            <div class="field">
+              <label for="amount">Сумма</label>
+              <input id="amount" inputmode="decimal" autocomplete="off" placeholder="Например, 100" maxlength="32">
+            </div>
+            <div class="field">
+              <label for="from">Из валюты</label>
+              <select id="from" disabled><option value="">Выберите валюту</option></select>
+            </div>
+            <div class="field">
+              <label for="to">В валюту</label>
+              <div class="inline">
+                <select id="to" disabled><option value="">Выберите валюту</option></select>
+                <button id="swap" class="secondary swap" type="button" aria-label="Поменять валюты местами" disabled>⇄</button>
+              </div>
+            </div>
+            <div class="field">
+              <label for="date">Дата курса</label>
+              <div class="inline">
+                <input id="date" autocomplete="off" placeholder="ДД.ММ.ГГГГ" maxlength="10">
+                <button id="today" class="secondary" type="button" disabled>Сегодня</button>
+              </div>
+            </div>
+            <div class="actions">
+              <button id="convert" class="primary" type="submit" disabled>Конвертировать</button>
+              <button id="refresh" class="secondary" type="button" disabled>Обновить курс</button>
+            </div>
+          </form>
+        </section>
+
+        <section class="card result-card" aria-labelledby="result-title">
+          <h2 id="result-title">Результат</h2>
+          <div id="output" aria-live="polite">
+            <p id="result" class="result" hidden></p>
+            <p id="rates" class="rates" hidden></p>
+            <p id="result-hint" class="hint">Введите сумму и выберите валюты.</p>
+          </div>
+          <p id="loading" class="notice" role="status" hidden>Загрузка курса…</p>
+          <div id="problem" class="problem" hidden>
+            <p id="error" role="alert"></p>
+            <div id="recovery" class="actions" hidden>
+              <button id="use-saved" class="secondary" type="button" hidden></button>
+              <button id="retry" class="secondary" type="button">Повторить</button>
+            </div>
+          </div>
+          <p id="selection-notice" class="notice" hidden></p>
+          <p id="rate-notice" class="notice" hidden></p>
+          <p id="cache-notice" class="notice" hidden></p>
+          <p id="status" class="provenance" aria-live="polite">Курс ещё не загружен.</p>
+        </section>
+      </div>
+    </main>
+  </body>
+</html>
