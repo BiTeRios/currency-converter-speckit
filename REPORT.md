@@ -188,3 +188,9 @@ user decides whether to use it.
 The feature specification was committed before the interface changes. The
 constitution records the approved exception for reviewing the specification,
 implementation, and browser tests as stacked pull requests.
+
+The 218 unit tests and eight Selenium tests passed. The browser tests use
+headless Chrome, fixed XML, and a temporary cache. The desktop checks covered
+keyboard submission, invalid input, earlier rates, and conversion after
+accepting a saved rate. The browser layout was reviewed at desktop width and
+at 390 pixels.

@@ -21,6 +21,10 @@ You can swap currencies, choose a date in DD.MM.YYYY format, reset it to today,
 or refresh the rates for that date. Each result includes both directions of the
 rate, its effective date, and the source.
 
+The default pair is USD to MDL. Amounts must be positive, at most one trillion,
+and have at most two decimal places. The date range starts on 1 January 2000
+and runs through tomorrow.
+
 ## Architecture
 
 ```mermaid
@@ -64,6 +68,20 @@ python -m pytest
 ```
 
 The unit suite uses local fixtures and temporary cache files. It does not contact BNM.
+
+## Browser tests
+
+Install Chrome and the browser test dependencies in the same virtual environment.
+Selenium Manager can obtain a compatible ChromeDriver on the first run.
+
+```sh
+python -m pip install -r requirements-e2e.txt
+python -m pytest e2e
+```
+
+The suite starts the local server on a free port and runs Chrome headlessly.
+It uses fixed BNM XML and a temporary cache to check conversion, validation,
+date fallback, offline recovery after a restart, and a narrow viewport.
 
 ## Configuration
 
