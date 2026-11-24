@@ -49,17 +49,19 @@ Rationale: the core is where the bugs that matter live; it must be cheap to test
 
 ### V. Simplicity and Minimal Dependencies
 
-- Runtime code uses the Python standard library only (`tkinter`, `urllib`, `xml.etree`, `json`,
-  `decimal`, `datetime`, `pathlib`). `pytest` is the only development dependency.
-- No speculative abstractions: one data source, one GUI, one cache file.
+- Python runtime code uses the standard library only. The local web interface uses
+  HTML, CSS, and JavaScript without a build step. `pytest` runs unit tests and
+  Selenium is an optional dependency for browser tests.
+- Use one data source and one cache format. The desktop and browser interfaces
+  share the same conversion, validation, loading, and caching code.
 
 Rationale: fewer moving parts means fewer ways for a code-generating agent to go wrong and an
 application that runs on any machine with Python installed.
 
 ## Technology and Data Constraints
 
-- Language and runtime: Python 3.11 or newer; desktop GUI built with Tkinter/ttk.
-  A console-only application is not acceptable.
+- Language and runtime: Python 3.11 or newer. Tkinter/ttk provides the desktop
+  interface, and a loopback HTTP server provides the browser interface.
 - Data source: official exchange rates of the National Bank of Moldova (BNM), XML endpoint
   `https://www.bnm.md/ru/official_exchange_rates?get_xml=1&date=DD.MM.YYYY`
   (Russian-language export: Russian currency names for the Russian interface).
@@ -75,8 +77,14 @@ application that runs on any machine with Python installed.
   Branches are merged into `main` only through GitHub Pull Requests, never by direct push.
 - Specification artifacts (`constitution.md`, `spec.md`, `plan.md`, `tasks.md` and supporting
   documents) MUST be committed and merged before any implementation code is written.
+  For feature 002, the approved exception is a stack of specification, implementation,
+  and browser-test pull requests. Complete and commit the specification before
+  writing implementation code. Each subsequent branch starts from the preceding
+  stage so the proposed changes can be reviewed in order.
 - Implementation is performed by a coding agent (Google Antigravity) from `tasks.md`.
   Human or other-agent edits to that code are allowed but MUST be listed in `REPORT.md`.
+  This requirement governs the original Spec Kit exercise. Implement feature 002
+  as a follow-up and describe its changes in `REPORT.md`.
 - Commit messages describe the change itself; a single "everything done" commit is not acceptable.
 - The implementation stage is complete when the application starts and the quickstart scenarios
   pass. From the tests stage on, a stage is complete only when `python -m pytest` passes.
@@ -90,4 +98,4 @@ application that runs on any machine with Python installed.
 - Every Pull Request is reviewed against the Core Principles; a violation must either be fixed or
   justified in the plan's Complexity Tracking section.
 
-**Version**: 1.1.1 | **Ratified**: 2026-11-18 | **Last Amended**: 2026-11-18
+**Version**: 2.0.0 | **Ratified**: 2026-11-18 | **Last Amended**: 2026-11-24
